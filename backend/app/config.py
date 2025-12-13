@@ -39,6 +39,7 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:8000",
         "https://gewerbespeicher.app",
+        "https://gewerbespeicher.vercel.app",
     ]
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
