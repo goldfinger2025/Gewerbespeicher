@@ -27,6 +27,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Gewerbespeicher Planner API...")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"Database: {settings.DATABASE_URL[:30]}...")
+    logger.info(f"CORS Origins: {settings.ALLOWED_ORIGINS}")
 
     # Initialize database tables
     try:
