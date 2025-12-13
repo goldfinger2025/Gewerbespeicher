@@ -10,6 +10,7 @@ import logging
 
 from app.config import settings
 from app.api.v1.router import router as v1_router
+from app.database import init_db, close_db
 
 # Setup Logging
 logging.basicConfig(
@@ -23,12 +24,22 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    logger.info("🚀 Starting Gewerbespeicher Planner API...")
-    logger.info(f"📦 Environment: {settings.ENVIRONMENT}")
-    logger.info(f"🔗 Database: {settings.DATABASE_URL[:30]}...")
+    logger.info("Starting Gewerbespeicher Planner API...")
+    logger.info(f"Environment: {settings.ENVIRONMENT}")
+    logger.info(f"Database: {settings.DATABASE_URL[:30]}...")
+
+    # Initialize database tables
+    try:
+        await init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.warning(f"Database initialization skipped: {e}")
+
     yield
+
     # Shutdown
-    logger.info("👋 Shutting down...")
+    logger.info("Shutting down...")
+    await close_db()
 
 
 # Initialize FastAPI Application
