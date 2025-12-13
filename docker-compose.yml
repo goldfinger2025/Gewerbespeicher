@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # ===================
+  # PostgreSQL Database
+  # ===================
+  db:
+    image: postgres:16-alpine
+    container_name: gewerbespeicher-db
+    environment:
+      POSTGRES_DB: gewerbespeicher
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: devpass123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d gewerbespeicher"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===================
+  # Redis Cache
+  # ===================
+  redis:
+    image: redis:7-alpine
+    container_name: gewerbespeicher-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===================
+  # Backend (FastAPI)
+  # ===================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gewerbespeicher-backend
+    environment:
+      DATABASE_URL: postgresql://dev:devpass123@db:5432/gewerbespeicher
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: dev-secret-key-change-in-production
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ===================
+  # Frontend (Next.js)
+  # ===================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: gewerbespeicher-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  # ===================
+  # Adminer (DB GUI)
+  # ===================
+  adminer:
+    image: adminer:latest
+    container_name: gewerbespeicher-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  redis_data:

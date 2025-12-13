@@ -1,0 +1,355 @@
+"use client";
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Battery,
+  Sun,
+  Zap,
+  ArrowLeft,
+  Calculator,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  ChevronRight,
+} from "lucide-react";
+import api from "@/lib/api-client";
+import { SimulationResults } from "@/components/visualizations/SimulationResults";
+import { ProjectForm } from "@/components/forms/ProjectForm";
+
+export default function PlannerPage() {
+  const params = useParams();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const projectId = params?.id as string | undefined;
+
+  const [activeTab, setActiveTab] = useState<"config" | "results" | "offer">("config");
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  // Fetch project if editing
+  const { data: project, isLoading: projectLoading } = useQuery({
+    queryKey: ["project", projectId],
+    queryFn: () => api.getProject(projectId!),
+    enabled: !!projectId,
+  });
+
+  // Fetch simulation results
+  const { data: simulation, refetch: refetchSimulation } = useQuery({
+    queryKey: ["simulation", projectId],
+    queryFn: () => api.simulate(projectId!),
+    enabled: false, // Only run manually
+  });
+
+  // Create project mutation
+  const createProject = useMutation({
+    mutationFn: (data: any) => api.createProject(data),
+    onSuccess: (result) => {
+      router.push(`/dashboard/planner/${result.id}`);
+    },
+  });
+
+  // Update project mutation
+  const updateProject = useMutation({
+    mutationFn: (data: any) => api.updateProject(projectId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+    },
+  });
+
+  // Run simulation
+  const runSimulation = async () => {
+    if (!projectId) return;
+    
+    setIsSimulating(true);
+    try {
+      await refetchSimulation();
+      setActiveTab("results");
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  // Generate offer
+  const generateOffer = useMutation({
+    mutationFn: () => api.createOffer(simulation?.simulation_id),
+    onSuccess: (result) => {
+      router.push(`/dashboard/offers/${result.id}`);
+    },
+  });
+
+  // Handle form submit
+  const handleFormSubmit = async (data: any) => {
+    if (projectId) {
+      await updateProject.mutateAsync(data);
+    } else {
+      await createProject.mutateAsync(data);
+    }
+  };
+
+  if (projectLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link
+            href="/dashboard"
+            className="text-slate-400 hover:text-slate-600 transition"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {project?.project_name || "Neues Projekt"}
+            </h1>
+            {project?.customer_name && (
+              <p className="text-slate-500">
+                {project.customer_name} • {project.city || project.postal_code}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {projectId && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={runSimulation}
+              disabled={isSimulating}
+              className="btn-primary flex items-center gap-2"
+            >
+              {isSimulating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Simuliere...
+                </>
+              ) : (
+                <>
+                  <Calculator className="w-4 h-4" />
+                  Simulation starten
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Tabs */}
+      {projectId && (
+        <div className="border-b border-slate-200">
+          <nav className="flex gap-8">
+            <button
+              onClick={() => setActiveTab("config")}
+              className={`
+                py-4 border-b-2 font-medium text-sm transition
+                ${activeTab === "config"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"}
+              `}
+            >
+              <span className="flex items-center gap-2">
+                <Sun className="w-4 h-4" />
+                Konfiguration
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab("results")}
+              disabled={!simulation}
+              className={`
+                py-4 border-b-2 font-medium text-sm transition
+                ${activeTab === "results"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"}
+                ${!simulation && "opacity-50 cursor-not-allowed"}
+              `}
+            >
+              <span className="flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                Ergebnisse
+                {simulation && (
+                  <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">
+                    ✓
+                  </span>
+                )}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab("offer")}
+              disabled={!simulation}
+              className={`
+                py-4 border-b-2 font-medium text-sm transition
+                ${activeTab === "offer"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"}
+                ${!simulation && "opacity-50 cursor-not-allowed"}
+              `}
+            >
+              <span className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Angebot
+              </span>
+            </button>
+          </nav>
+        </div>
+      )}
+
+      {/* Tab Content */}
+      <div className="animate-fade-in">
+        {activeTab === "config" && (
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Configuration Form */}
+            <div className="lg:col-span-2">
+              <div className="card">
+                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                  <Battery className="w-5 h-5 text-blue-600" />
+                  Projektkonfiguration
+                </h2>
+                <ProjectForm
+                  onSubmit={handleFormSubmit}
+                  initialData={project}
+                  isEditing={!!projectId}
+                />
+              </div>
+            </div>
+
+            {/* Quick Preview */}
+            <div className="lg:col-span-1 space-y-6">
+              {project && (
+                <>
+                  <div className="card">
+                    <h3 className="font-semibold mb-4">Systemübersicht</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                        <span className="text-slate-500 flex items-center gap-2">
+                          <Sun className="w-4 h-4 text-amber-500" />
+                          PV-Leistung
+                        </span>
+                        <span className="font-semibold">
+                          {project.pv_peak_power_kw} kWp
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                        <span className="text-slate-500 flex items-center gap-2">
+                          <Battery className="w-4 h-4 text-emerald-500" />
+                          Speicher
+                        </span>
+                        <span className="font-semibold">
+                          {project.battery_capacity_kwh} kWh
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-slate-500 flex items-center gap-2">
+                          <Zap className="w-4 h-4 text-blue-500" />
+                          Verbrauch
+                        </span>
+                        <span className="font-semibold">
+                          {project.annual_consumption_kwh?.toLocaleString("de-DE")} kWh/a
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Optimization Teaser */}
+                  <div className="card bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-purple-100 p-2 rounded-lg">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-purple-900">
+                          KI-Optimierung
+                        </h3>
+                        <p className="text-sm text-purple-700 mt-1">
+                          Lassen Sie Claude die optimale Systemgröße für Ihren 
+                          Anwendungsfall berechnen.
+                        </p>
+                        <button className="text-sm text-purple-600 font-medium mt-2 flex items-center gap-1 hover:text-purple-700">
+                          System optimieren
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "results" && simulation && (
+          <div className="space-y-6">
+            <SimulationResults
+              results={simulation.results}
+              projectName={project?.project_name}
+            />
+
+            {/* Actions */}
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={runSimulation}
+                disabled={isSimulating}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSimulating ? "animate-spin" : ""}`} />
+                Neu berechnen
+              </button>
+              <button
+                onClick={() => generateOffer.mutate()}
+                disabled={generateOffer.isPending}
+                className="btn-primary flex items-center gap-2"
+              >
+                {generateOffer.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4" />
+                )}
+                Angebot erstellen
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "offer" && simulation && (
+          <div className="card max-w-3xl mx-auto">
+            <div className="text-center py-12">
+              <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
+                Angebot generieren
+              </h3>
+              <p className="text-slate-500 mb-6 max-w-md mx-auto">
+                Erstellen Sie ein professionelles Angebot mit KI-generiertem Text, 
+                detaillierter Wirtschaftlichkeitsberechnung und Komponentenliste.
+              </p>
+              <button
+                onClick={() => generateOffer.mutate()}
+                disabled={generateOffer.isPending}
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                {generateOffer.isPending ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Wird erstellt...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    Mit KI generieren
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
