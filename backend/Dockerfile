@@ -21,13 +21,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Default port (Railway uses PORT env var)
+# Default port (Railway provides PORT env var at runtime)
 ENV PORT=8000
-EXPOSE ${PORT}
+EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/api/v1/health')" || exit 1
-
-# Run the application (Railway provides PORT dynamically)
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT} --workers 2
+# Run the application with shell to expand $PORT at runtime
+CMD ["/bin/sh", "-c", "uvicorn main:app --host 0.0.0.0 --port $PORT --workers 2"]
