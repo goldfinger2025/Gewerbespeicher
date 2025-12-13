@@ -3,7 +3,7 @@ Project Model
 SQLAlchemy ORM model for PV+Storage projects
 """
 
-from sqlalchemy import Column, String, Boolean, DateTime, Float, Text, ForeignKey, func
+from sqlalchemy import Column, String, DateTime, Float, Text, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid

@@ -320,7 +320,7 @@ Antworte NUR als JSON-Array:
             
             try:
                 return json.loads(response_text)
-            except:
+            except json.JSONDecodeError:
                 import re
                 json_match = re.search(r'\[[\s\S]*\]', response_text)
                 if json_match:

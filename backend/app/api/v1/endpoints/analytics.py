@@ -77,14 +77,16 @@ async def get_dashboard_metrics(
 
     Gibt Portfolio-Übersicht, Trends und KPIs zurück.
     """
-    # Calculate date range based on period
+    # Calculate date range based on period (reserved for future filtering)
     now = datetime.utcnow()
     if period == "week":
-        start_date = now - timedelta(days=7)
+        _start_date = now - timedelta(days=7)
     elif period == "year":
-        start_date = now - timedelta(days=365)
+        _start_date = now - timedelta(days=365)
     else:  # month (default)
-        start_date = now - timedelta(days=30)
+        _start_date = now - timedelta(days=30)
+
+    # TODO: Use _start_date for filtering projects by date range
 
     # Get all user's projects
     projects_query = select(Project).where(
