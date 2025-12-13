@@ -14,13 +14,20 @@ from app.config import settings
 
 # Convert sync database URL to async URL
 def get_async_database_url() -> str:
-    """Convert postgresql:// to postgresql+asyncpg://"""
+    """Convert postgresql:// to postgresql+asyncpg:// and remove incompatible params"""
     url = settings.DATABASE_URL
-    if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    elif url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql+asyncpg://", 1)
-    return url
+
+    # Remove sslmode and channel_binding params (handled via connect_args for asyncpg)
+    if "?" in url:
+        base_url = url.split("?")[0]
+    else:
+        base_url = url
+
+    if base_url.startswith("postgresql://"):
+        return base_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif base_url.startswith("postgres://"):
+        return base_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    return base_url
 
 
 def get_engine_kwargs() -> dict:
