@@ -1,0 +1,793 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs26 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 # \'f0\'9f\'93\'8b IMPLEMENTIERUNGS-FAHRPLAN - Detaillierte Schritte f\'c3\'bcr Claude Code\
+\
+**Status:** Ready to build  \
+**Dauer Phase 1:** 4 Wochen  \
+**Tech-Lead:** Claude Opus 4.5  \
+**Ihr Input:** GitHub Credentials + API Keys\
+\
+---\
+\
+## \'f0\'9f\'97\'82\'ef\'b8\uc0\u143  PHASE 1: MVP-FOUNDATION (Wochen 1-4)\
+\
+### WOCHE 1: PROJEKT SETUP & AUTHENTIFIZIERUNG\
+\
+#### Tag 1-2: GitHub & Infrastruktur\
+\
+**Zu tun:**\
+\
+```bash\
+# 1. GitHub Repo\
+https://github.com/new\
+\'e2\'86\'92 Repository: "gewerbespeicher-app"\
+\'e2\'86\'92 Template: None\
+\'e2\'86\'92 Private\
+\'e2\'86\'92 License: MIT\
+\
+# 2. GitHub lokalisieren\
+git clone https://github.com/IHR-USERNAME/gewerbespeicher-app.git\
+cd gewerbespeicher-app\
+\
+# 3. Verzeichnisstruktur erstellen\
+mkdir -p \{frontend,backend,shared,docs,tests,.github/workflows\}\
+\
+# 4. Initiale Dateien\
+echo "# Gewerbespeicher Planner" > README.md\
+echo "# Architektur-Dokumentation" > ARCHITECTURE.md\
+\
+git add .\
+git commit -m "Initial commit: Project setup"\
+git push origin main\
+```\
+\
+**Accounts vorbereiten:**\
+\
+- \'e2\'98\uc0\u144  Neon Signup: https://neon.tech (PostgreSQL kostenlos)\
+  - Database erstellen: `gewerbespeicher_dev`\
+  - Connection String speichern\
+  \
+- \'e2\'98\uc0\u144  Railway Signup: https://railway.app (Backend Hosting)\
+  - GitHub verbinden\
+  - Environment-Variablen konfigurieren\
+  \
+- \'e2\'98\uc0\u144  Vercel Signup: https://vercel.com (Frontend Hosting)\
+  - GitHub verbinden\
+  - Next.js Template\
+\
+- \'e2\'98\uc0\u144  Anthropic API: https://console.anthropic.com\
+  - API Key generieren\
+  - Billing aktivieren\
+\
+---\
+\
+#### Tag 3-5: Frontend Initialisierung (Next.js 15)\
+\
+**Befehl zum Starten:**\
+\
+```bash\
+cd frontend\
+\
+# 1. Next.js Projekt mit Typescript + Tailwind\
+npx create-next-app@latest . \\\
+  --typescript \\\
+  --tailwind \\\
+  --no-eslint \\\
+  --app \\\
+  --no-git\
+\
+# 2. Package-Dependencies installieren (AUS STARTER KIT)\
+npm install \\\
+  @tanstack/react-query \\\
+  axios \\\
+  zod \\\
+  react-hook-form \\\
+  @hookform/resolvers \\\
+  recharts \\\
+  chart.js \\\
+  date-fns \\\
+  mapbox-gl \\\
+  @mapbox/mapbox-gl-geocoder\
+\
+# 3. Entwicklungs-Dependencies\
+npm install --save-dev \\\
+  @types/node \\\
+  @types/react \\\
+  @types/react-dom \\\
+  typescript \\\
+  postcss \\\
+  autoprefixer\
+\
+# 4. Ordnerstruktur nach Starter Kit\
+mkdir -p src/\{components/ui,components/forms,components/visualizations,components/planner,hooks,lib,types,styles\}\
+\
+# 5. Environment-Datei\
+cp .env.example .env.local  # (aus starter kit)\
+```\
+\
+**Dateien zum Copy-Paste (aus Copy-Paste-Starter-Kits.md):**\
+\
+- \'e2\'98\uc0\u144  `frontend/.env.local`\
+- \'e2\'98\uc0\u144  `frontend/package.json`\
+- \'e2\'98\uc0\u144  `frontend/app/layout.tsx`\
+- \'e2\'98\uc0\u144  `frontend/app/page.tsx`\
+- \'e2\'98\uc0\u144  `frontend/lib/api-client.ts`\
+- \'e2\'98\uc0\u144  `frontend/types/*.ts` (Create types/project.ts, types/simulation.ts)\
+\
+**Commit:**\
+\
+```bash\
+git add frontend/\
+git commit -m "feat: Next.js 15 setup with TypeScript and Tailwind"\
+git push\
+```\
+\
+---\
+\
+#### Tag 6-7: Backend Initialisierung (FastAPI)\
+\
+**Befehl zum Starten:**\
+\
+```bash\
+cd backend\
+\
+# 1. Python Virtual Environment\
+python3.11 -m venv venv\
+source venv/bin/activate  # macOS/Linux\
+# venv\\Scripts\\activate  # Windows\
+\
+# 2. Requirements installieren\
+pip install -r requirements.txt  # (aus starter kit)\
+\
+# 3. Verzeichnisstruktur\
+mkdir -p app/\{api/v1/endpoints,core,services,models,crud,utils\}\
+touch app/__init__.py\
+touch app/main.py\
+touch app/config.py\
+\
+# 4. Environment\
+cp .env.example .env\
+```\
+\
+**Dateien zum Copy-Paste (aus Copy-Paste-Starter-Kits.md):**\
+\
+- \'e2\'98\uc0\u144  `backend/requirements.txt`\
+- \'e2\'98\uc0\u144  `backend/main.py`\
+- \'e2\'98\uc0\u144  `backend/app/config.py`\
+- \'e2\'98\uc0\u144  `backend/app/models/database.py` (SQLAlchemy Models)\
+- \'e2\'98\uc0\u144  `backend/app/api/v1/router.py`\
+- \'e2\'98\uc0\u144  `backend/app/api/v1/endpoints/health.py`\
+- \'e2\'98\uc0\u144  `backend/Dockerfile`\
+- \'e2\'98\uc0\u144  `backend/.dockerignore`\
+\
+**Test:**\
+\
+```bash\
+python main.py\
+# \'e2\'86\'92 GET http://localhost:8000/health\
+# \'e2\'86\'92 Response: \{"status": "healthy"\}\
+```\
+\
+**Commit:**\
+\
+```bash\
+git add backend/\
+git commit -m "feat: FastAPI setup with SQLAlchemy"\
+git push\
+```\
+\
+---\
+\
+### WOCHE 2: DATABASE & AUTHENTIFIZIERUNG\
+\
+#### Tag 1-3: PostgreSQL Setup & Migrationen\
+\
+**Neon Dashboard:**\
+\
+```\
+https://console.neon.tech/\
+1. Neues Projekt: "gewerbespeicher"\
+2. Database: "gewerbespeicher_prod"\
+3. Connection String kopieren\
+\'e2\'86\'92 DATABASE_URL=postgresql://[user]:[pass]@[host]/gewerbespeicher_prod\
+```\
+\
+**Datenbank-Initialisierung:**\
+\
+```bash\
+# Option A: Direkt mit SQL (einfach)\
+# In Neon Console \'e2\'86\'92 SQL Editor\
+# Paste: init.sql (aus Copy-Paste-Starter-Kits.md)\
+\
+# Option B: Mit Alembic-Migration (professionell)\
+cd backend\
+\
+# 1. Alembic installieren\
+pip install alembic\
+\
+# 2. Init\
+alembic init migrations\
+\
+# 3. Migration erstellen\
+alembic revision --autogenerate -m "Initial schema"\
+\
+# 4. Apply\
+alembic upgrade head\
+```\
+\
+**Datei zum Kopieren:**\
+\
+- \'e2\'98\uc0\u144  `backend/app/models/database.py`\
+  ```python\
+  # SQLAlchemy Models f\'c3\'bcr alle Tabellen\
+  # (User, Project, Simulation, Offer, Component, Lead)\
+  ```\
+\
+- \'e2\'98\uc0\u144  `backend/alembic/versions/001_initial_schema.py`\
+\
+**Test Verbindung:**\
+\
+```bash\
+# In backend/app/config.py\
+python3 -c "\
+from app.models.database import Base, engine\
+Base.metadata.create_all(bind=engine)\
+print('\'e2\'9c\'85 Database initialized')\
+"\
+```\
+\
+---\
+\
+#### Tag 4-7: JWT Authentication Implementation\
+\
+**Backend-Seite:**\
+\
+**Dateien zum Kopieren:**\
+\
+- \'e2\'98\uc0\u144  `backend/app/security.py`\
+  ```python\
+  from datetime import datetime, timedelta\
+  from jose import JWTError, jwt\
+  from passlib.context import CryptContext\
+  from app.config import settings\
+  \
+  pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")\
+  \
+  def hash_password(password: str) -> str:\
+      return pwd_context.hash(password)\
+  \
+  def verify_password(plain: str, hashed: str) -> bool:\
+      return pwd_context.verify(plain, hashed)\
+  \
+  def create_access_token(data: dict, expires_delta=None):\
+      to_encode = data.copy()\
+      if expires_delta:\
+          expire = datetime.utcnow() + expires_delta\
+      else:\
+          expire = datetime.utcnow() + timedelta(minutes=15)\
+      \
+      to_encode.update(\{"exp": expire\})\
+      encoded = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)\
+      return encoded\
+  ```\
+\
+- \'e2\'98\uc0\u144  `backend/app/api/v1/endpoints/auth.py`\
+  ```python\
+  from fastapi import APIRouter, HTTPException, Depends\
+  from sqlalchemy.orm import Session\
+  from app.models.database import User\
+  from app.security import hash_password, create_access_token, verify_password\
+  from app.dependencies import get_db\
+  \
+  router = APIRouter()\
+  \
+  @router.post("/register")\
+  async def register(email: str, password: str, db: Session = Depends(get_db)):\
+      existing = db.query(User).filter(User.email == email).first()\
+      if existing:\
+          raise HTTPException(status_code=400, detail="Email bereits registriert")\
+      \
+      user = User(\
+          email=email,\
+          hashed_password=hash_password(password)\
+      )\
+      db.add(user)\
+      db.commit()\
+      \
+      return \{\
+          "user_id": str(user.id),\
+          "email": user.email\
+      \}\
+  \
+  @router.post("/login")\
+  async def login(email: str, password: str, db: Session = Depends(get_db)):\
+      user = db.query(User).filter(User.email == email).first()\
+      if not user or not verify_password(password, user.hashed_password):\
+          raise HTTPException(status_code=401, detail="Invalid credentials")\
+      \
+      token = create_access_token(\{"sub": str(user.id)\})\
+      return \{"access_token": token, "token_type": "bearer"\}\
+  ```\
+\
+**Frontend-Seite:**\
+\
+- \'e2\'98\uc0\u144  `frontend/app/(auth)/login/page.tsx`\
+  ```typescript\
+  "use client";\
+  \
+  import \{ useState \} from "react";\
+  import \{ useRouter \} from "next/navigation";\
+  import api from "@/lib/api-client";\
+  \
+  export default function LoginPage() \{\
+    const [email, setEmail] = useState("");\
+    const [password, setPassword] = useState("");\
+    const router = useRouter();\
+    \
+    const handleLogin = async (e) => \{\
+      e.preventDefault();\
+      try \{\
+        const result = await api.login(email, password);\
+        localStorage.setItem("access_token", result.access_token);\
+        router.push("/dashboard");\
+      \} catch (error) \{\
+        alert("Login fehlgeschlagen");\
+      \}\
+    \};\
+    \
+    return (\
+      <form onSubmit=\{handleLogin\} className="max-w-md mx-auto mt-20 p-6 border rounded">\
+        <h1 className="text-2xl font-bold mb-4">Anmelden</h1>\
+        <input\
+          type="email"\
+          placeholder="Email"\
+          value=\{email\}\
+          onChange=\{(e) => setEmail(e.target.value)\}\
+          className="w-full p-2 border rounded mb-4"\
+        />\
+        <input\
+          type="password"\
+          placeholder="Passwort"\
+          value=\{password\}\
+          onChange=\{(e) => setPassword(e.target.value)\}\
+          className="w-full p-2 border rounded mb-4"\
+        />\
+        <button type="submit" className="w-full bg-blue-600 text-white p-2 rounded">\
+          Anmelden\
+        </button>\
+      </form>\
+    );\
+  \}\
+  ```\
+\
+**Commit:**\
+\
+```bash\
+git add .\
+git commit -m "feat: JWT authentication with login/register"\
+git push\
+```\
+\
+---\
+\
+### WOCHE 3: SIMULATOR & KERNLOGIK\
+\
+#### Tag 1-3: PV Storage Simulator\
+\
+**Datei zum Kopieren:**\
+\
+- \'e2\'98\uc0\u144  `backend/app/core/simulator.py` (AUS STARTER KIT)\
+  - Vollst\'c3\'a4ndiger `PVStorageSimulator` mit pvlib\
+  - Speicher-Logik\
+  - Finanzielle KPIs\
+\
+**Test:**\
+\
+```python\
+# backend/tests/test_simulator.py\
+import pytest\
+from app.core.simulator import PVStorageSimulator\
+\
+@pytest.mark.asyncio\
+async def test_simulate_year():\
+    sim = PVStorageSimulator(latitude=50.5, longitude=10.0)\
+    \
+    result = await sim.simulate_year(\
+        pv_peak_kw=10,\
+        battery_kwh=15,\
+        battery_power_kw=5,\
+        annual_consumption_kwh=20000,\
+        electricity_price=0.30,\
+        feed_in_tariff=0.08\
+    )\
+    \
+    assert result["autonomy_degree_percent"] > 0\
+    assert result["annual_savings_eur"] > 0\
+    assert "pv_generation_kwh" in result\
+    \
+    print(f"\'e2\'9c\'85 Autonomy: \{result['autonomy_degree_percent']\}%")\
+    print(f"\'e2\'9c\'85 Savings: \'e2\'82\'ac\{result['annual_savings_eur']:.2f\}/Year")\
+```\
+\
+**Endpoint zum Kopieren:**\
+\
+- \'e2\'98\uc0\u144  `backend/app/api/v1/endpoints/simulations.py`\
+  ```python\
+  from fastapi import APIRouter, HTTPException, BackgroundTasks\
+  from sqlalchemy.orm import Session\
+  from app.core.simulator import PVStorageSimulator\
+  from app.models.database import Project, Simulation\
+  from app.dependencies import get_db\
+  import asyncio\
+  \
+  router = APIRouter()\
+  \
+  @router.post("/\{project_id\}")\
+  async def run_simulation(\
+      project_id: str,\
+      background_tasks: BackgroundTasks,\
+      db: Session = Depends(get_db)\
+  ):\
+      """Neue Simulation starten"""\
+      project = db.query(Project).filter(Project.id == project_id).first()\
+      if not project:\
+          raise HTTPException(status_code=404)\
+      \
+      sim = PVStorageSimulator(\
+          latitude=project.latitude,\
+          longitude=project.longitude\
+      )\
+      \
+      result = await sim.simulate_year(\
+          pv_peak_kw=project.pv_peak_power_kw,\
+          battery_kwh=project.battery_capacity_kwh,\
+          battery_power_kw=project.battery_power_kw,\
+          annual_consumption_kwh=project.annual_consumption_kwh,\
+          electricity_price=project.electricity_price_eur_kwh,\
+          feed_in_tariff=0.08\
+      )\
+      \
+      # Save to database\
+      simulation = Simulation(\
+          project_id=project_id,\
+          **result\
+      )\
+      db.add(simulation)\
+      db.commit()\
+      \
+      return \{"simulation_id": str(simulation.id), "results": result\}\
+  ```\
+\
+---\
+\
+#### Tag 4-7: Frontend Results Dashboard\
+\
+**Komponenten zum Kopieren/Erstellen:**\
+\
+- \'e2\'98\uc0\u144  `frontend/components/visualizations/StorageSimulation.tsx`\
+  - Recharts f\'c3\'bcr Jahresverlauf\
+  - MetricCards f\'c3\'bcr KPIs\
+  - Battery-Visualisierung\
+\
+- \'e2\'98\uc0\u144  `frontend/app/(dashboard)/results/[projectId]/page.tsx`\
+  ```typescript\
+  "use client";\
+  \
+  import \{ useQuery \} from "@tanstack/react-query";\
+  import api from "@/lib/api-client";\
+  import \{ StorageSimulation \} from "@/components/visualizations/StorageSimulation";\
+  \
+  export default function ResultsPage(\{ params \}) \{\
+    const \{ data: project \} = useQuery(\{\
+      queryKey: ["project", params.projectId],\
+      queryFn: () => api.getProject(params.projectId),\
+    \});\
+    \
+    const \{ data: simulation, isLoading \} = useQuery(\{\
+      queryKey: ["simulation", params.projectId],\
+      queryFn: () => api.simulate(params.projectId),\
+    \});\
+    \
+    if (isLoading) return <div>Simuliere...</div>;\
+    \
+    return (\
+      <div className="max-w-6xl mx-auto p-8">\
+        <h1 className="text-3xl font-bold mb-8">Simulationsergebnisse</h1>\
+        <StorageSimulation projectId=\{params.projectId\} />\
+      </div>\
+    );\
+  \}\
+  ```\
+\
+**Commit:**\
+\
+```bash\
+git add .\
+git commit -m "feat: PV Storage Simulator + Results Dashboard"\
+git push\
+```\
+\
+---\
+\
+### WOCHE 4: FINAL MVP & DEPLOYMENT\
+\
+#### Tag 1-3: Polish & Testing\
+\
+**Frontend:**\
+\
+- \'e2\'98\uc0\u144  Responsive Design \'c3\'bcberpr\'c3\'bcfen\
+- \'e2\'98\uc0\u144  Form Validation (Zod Schema)\
+- \'e2\'98\uc0\u144  Error Handling\
+- \'e2\'98\uc0\u144  Loading States\
+\
+**Backend:**\
+\
+- \'e2\'98\uc0\u144  Error Response standardisieren\
+- \'e2\'98\uc0\u144  Input Validation\
+- \'e2\'98\uc0\u144  Rate Limiting (wenn Zeit)\
+- \'e2\'98\uc0\u144  Logging implementieren\
+\
+**Testing:**\
+\
+```bash\
+# Backend Tests\
+cd backend\
+pytest tests/\
+\
+# Frontend Tests (optional, f\'c3\'bcr MVP nicht erforderlich)\
+cd frontend\
+npm test\
+```\
+\
+---\
+\
+#### Tag 4-5: Vercel Deployment (Frontend)\
+\
+```bash\
+# 1. Vercel CLI\
+npm install -g vercel\
+\
+# 2. Login\
+vercel login\
+\
+# 3. In Frontend-Verzeichnis\
+cd frontend\
+\
+# 4. Deploy\
+vercel deploy --prod\
+\
+# 5. Environment Variablen in Vercel Dashboard\
+NEXT_PUBLIC_API_URL = https://api.railway.app\
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = ***\
+```\
+\
+**Vercel Config (vercel.json):**\
+\
+```json\
+\{\
+  "buildCommand": "npm run build",\
+  "outputDirectory": ".next",\
+  "env": \{\
+    "NEXT_PUBLIC_API_URL": "@api_url"\
+  \}\
+\}\
+```\
+\
+---\
+\
+#### Tag 6-7: Railway Deployment (Backend)\
+\
+```bash\
+# 1. Railway CLI\
+npm install -g @railway/cli\
+\
+# 2. Login\
+railway login\
+\
+# 3. Im Backend-Verzeichnis\
+cd backend\
+\
+# 4. Projekt initialisieren\
+railway init\
+\
+# 5. Environment Variablen\
+railway variables set DATABASE_URL "postgresql://..."\
+railway variables set ANTHROPIC_API_KEY "sk-ant-..."\
+railway variables set SECRET_KEY "$(openssl rand -hex 32)"\
+\
+# 6. Deploy\
+railway up\
+```\
+\
+**Railway Dockerfile (per Vorlage aus Starter Kit):**\
+\
+```dockerfile\
+FROM python:3.11-slim\
+WORKDIR /app\
+COPY requirements.txt .\
+RUN pip install -r requirements.txt\
+COPY . .\
+EXPOSE 8000\
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]\
+```\
+\
+---\
+\
+#### Tag 7: Go-Live Checklist\
+\
+- \'e2\'98\uc0\u144  Frontend live on Vercel\
+- \'e2\'98\uc0\u144  Backend live on Railway\
+- \'e2\'98\uc0\u144  Database connected & accessible\
+- \'e2\'98\uc0\u144  Authentication working\
+- \'e2\'98\uc0\u144  Simulation calculations working\
+- \'e2\'98\uc0\u144  Results visible\
+- \'e2\'98\uc0\u144  Error handling in place\
+- \'e2\'98\uc0\u144  Logging configured\
+- \'e2\'98\uc0\u144  HTTPS everywhere\
+- \'e2\'98\uc0\u144  CORS configured correctly\
+\
+**Commit Final:**\
+\
+```bash\
+git add .\
+git commit -m "chore: MVP Phase 1 - Production deployment"\
+git tag v0.1.0\
+git push --tags\
+```\
+\
+---\
+\
+## \'f0\'9f\'8e\'af PHASE 2: KI & INTELLIGENZ (Wochen 5-8)\
+\
+*(Diese Phase starten, wenn Phase 1 \'e2\'9c\'85 ist)*\
+\
+### Woche 5-6: Claude Integration\
+\
+**Datei zum Kopieren:**\
+\
+- \'e2\'98\uc0\u144  `backend/app/services/claude_service.py` (AUS STARTER KIT)\
+\
+**Endpoint:**\
+\
+- \'e2\'98\uc0\u144  `backend/app/api/v1/endpoints/offers.py`\
+  ```python\
+  from app.services.claude_service import OfferGenerationService\
+  \
+  @router.post("/\{simulation_id\}/generate")\
+  async def generate_offer(simulation_id: str, db: Session = Depends(get_db)):\
+      simulation = db.query(Simulation).filter(...).first()\
+      project = db.query(Project).filter(...).first()\
+      \
+      service = OfferGenerationService(api_key=settings.ANTHROPIC_API_KEY)\
+      offer_text = await service.generate_offer_text(\
+          project=project.dict(),\
+          simulation=simulation.dict(),\
+          components=[]\
+      )\
+      \
+      offer = Offer(\
+          simulation_id=simulation_id,\
+          offer_text=offer_text\
+      )\
+      db.add(offer)\
+      db.commit()\
+      return \{"offer_id": str(offer.id), "text": offer_text\}\
+  ```\
+\
+**Frontend UI f\'c3\'bcr Angebote:**\
+\
+- \'e2\'98\uc0\u144  `frontend/components/offers/OfferPreview.tsx`\
+\
+---\
+\
+### Woche 7-8: PDF & E-Signatur\
+\
+**PDF Generation:**\
+\
+```python\
+# backend/app/services/pdf_service.py\
+from reportlab.lib.pagesizes import letter\
+from reportlab.pdfgen import canvas\
+\
+def generate_offer_pdf(offer_data: dict, output_path: str):\
+    c = canvas.Canvas(output_path, pagesize=letter)\
+    # ... PDF content\
+    c.save()\
+```\
+\
+**E-Signature (DocuSign):**\
+\
+```python\
+# Integration placeholder f\'c3\'bcr Phase 2\
+# Wenn Budget vorhanden: DocuSign API\
+```\
+\
+---\
+\
+## \'f0\'9f\'93\'9a DOKUMENTATION STRUKTUR\
+\
+```\
+docs/\
+\'e2\'94\'9c\'e2\'94\'80\'e2\'94\'80 README.md (\'c3\'9cbersicht)\
+\'e2\'94\'9c\'e2\'94\'80\'e2\'94\'80 SETUP.md (Lokale Entwicklung)\
+\'e2\'94\'9c\'e2\'94\'80\'e2\'94\'80 API.md (REST API Dokumentation)\
+\'e2\'94\'9c\'e2\'94\'80\'e2\'94\'80 DEPLOYMENT.md (Vercel + Railway)\
+\'e2\'94\'9c\'e2\'94\'80\'e2\'94\'80 ARCHITECTURE.md (Systembeschreibung)\
+\'e2\'94\'9c\'e2\'94\'80\'e2\'94\'80 TROUBLESHOOTING.md (FAQ)\
+\'e2\'94\'94\'e2\'94\'80\'e2\'94\'80 CONTRIBUTING.md (F\'c3\'bcr zuk\'c3\'bcnftige Entwickler)\
+```\
+\
+---\
+\
+## \'f0\'9f\'9a\'80 KOMMANDOS F\'c3\'9cR SCHNELLEN START\
+\
+### Alles auf einmal (Docker)\
+\
+```bash\
+# Aus Projekt-Root\
+docker-compose up -d\
+\
+# Frontend: http://localhost:3000\
+# Backend: http://localhost:8000\
+# Adminer (DB): http://localhost:8080\
+```\
+\
+### Nur lokale Entwicklung\
+\
+```bash\
+# Terminal 1: Frontend\
+cd frontend && npm run dev\
+\
+# Terminal 2: Backend\
+cd backend && python main.py\
+\
+# Terminal 3: Database (optional, nur wenn nicht Docker)\
+# Neon Console \'c3\'b6ffnen\
+```\
+\
+---\
+\
+## \'f0\'9f\'93\'9e KONTAKTPUNKTE MIT CLAUDE CODE\
+\
+**Wann Sie Claude Code nutzen:**\
+\
+1. **Datei-Generierung** - Copy-Paste Starter-Kit Inhalte\
+2. **Komponenten-Coding** - React/TypeScript Components bauen\
+3. **API-Endpoints** - FastAPI Routes implementieren\
+4. **Bug-Fixing** - Wenn etwas nicht funktioniert\
+5. **Optimization** - Performance/Security-Improvements\
+\
+**Was Sie selbst tun:**\
+\
+1. GitHub Repo initialisieren + pushen\
+2. API-Keys bei Services registrieren\
+3. Commands in Terminal ausf\'c3\'bchren\
+4. Angepasste Umgebungsvariablen setzen\
+5. Finale Deployments triggern\
+\
+---\
+\
+## \'e2\'9c\'85 ERFOLGS-KRITERIEN PHASE 1\
+\
+MVP ist fertig, wenn:\
+\
+- \'e2\'9c\'85 User kann sich registrieren/anmelden\
+- \'e2\'9c\'85 Projekt erstellen mit Grunddaten\
+- \'e2\'9c\'85 Simulator l\'c3\'a4uft und berechnet Ergebnisse\
+- \'e2\'9c\'85 Dashboard zeigt KPIs (Autarkie, Einsparung, ROI)\
+- \'e2\'9c\'85 Charts visualisieren Jahresverlauf\
+- \'e2\'9c\'85 Frontend live on Vercel\
+- \'e2\'9c\'85 Backend live on Railway\
+- \'e2\'9c\'85 Alle Tests \'e2\'9c\'85 gr\'c3\'bcn\
+\
+---\
+\
+**Bereit? Sagen Sie Bescheid, wir starten Phase 1 mit Claude Code! \'f0\'9f\'9a\'80**\
+}

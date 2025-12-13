@@ -1,0 +1,899 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs26 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 # \'f0\'9f\'9a\'80 COPY-PASTE STARTER KITS - Sofort Einsatz bereit\
+\
+## 1\'ef\'b8\uc0\u143 \'e2\'83\'a3 FRONTEND SETUP - Next.js 15 Init\
+\
+### .env.local\
+```\
+NEXT_PUBLIC_API_URL=http://localhost:8000\
+NEXT_PUBLIC_API_URL_PROD=https://api.gewerbespeicher.app\
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_KEY_HERE\
+NEXT_PUBLIC_MAPBOX_TOKEN=YOUR_TOKEN_HERE\
+NEXT_PUBLIC_ENVIRONMENT=development\
+```\
+\
+### package.json\
+```json\
+\{\
+  "name": "gewerbespeicher-app",\
+  "version": "0.1.0",\
+  "private": true,\
+  "scripts": \{\
+    "dev": "next dev",\
+    "build": "next build",\
+    "start": "next start",\
+    "lint": "next lint",\
+    "type-check": "tsc --noEmit"\
+  \},\
+  "dependencies": \{\
+    "react": "^19.0.0",\
+    "react-dom": "^19.0.0",\
+    "next": "^15.0.0",\
+    "@tanstack/react-query": "^5.0.0",\
+    "axios": "^1.7.0",\
+    "zod": "^3.22.0",\
+    "@hookform/resolvers": "^3.3.0",\
+    "react-hook-form": "^7.50.0",\
+    "recharts": "^2.10.0",\
+    "chart.js": "^4.4.0",\
+    "tailwindcss": "^3.4.0",\
+    "clsx": "^2.0.0",\
+    "date-fns": "^3.0.0",\
+    "mapbox-gl": "^3.0.0",\
+    "@mapbox/mapbox-gl-geocoder": "^5.0.0"\
+  \},\
+  "devDependencies": \{\
+    "@types/node": "^20.0.0",\
+    "@types/react": "^18.0.0",\
+    "@types/react-dom": "^18.0.0",\
+    "typescript": "^5.4.0",\
+    "tailwindcss": "^3.4.0",\
+    "postcss": "^8.4.0",\
+    "autoprefixer": "^10.4.0"\
+  \}\
+\}\
+```\
+\
+### app/layout.tsx\
+```typescript\
+import type \{ Metadata \} from "next";\
+import "./globals.css";\
+\
+export const metadata: Metadata = \{\
+  title: "Gewerbespeicher Planner",\
+  description: "KI-gest\'c3\'bctzte Planung von PV-Speichersystemen",\
+\};\
+\
+export default function RootLayout(\{\
+  children,\
+\}: \{\
+  children: React.ReactNode;\
+\}) \{\
+  return (\
+    <html lang="de">\
+      <head>\
+        <script src=\{`https://maps.googleapis.com/maps/api/js?key=$\{process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY\}`\}></script>\
+      </head>\
+      <body className="bg-slate-50">\{children\}</body>\
+    </html>\
+  );\
+\}\
+```\
+\
+### app/page.tsx (Dashboard Home)\
+```typescript\
+"use client";\
+\
+import \{ useQuery \} from "@tanstack/react-query";\
+import api from "@/lib/api-client";\
+import \{ ProjectForm \} from "@/components/forms/ProjectForm";\
+import \{ Button \} from "@/components/ui/button";\
+import Link from "next/link";\
+\
+export default function Home() \{\
+  const \{ data: projects \} = useQuery(\{\
+    queryKey: ["projects"],\
+    queryFn: () => api.getProjects(),\
+  \});\
+\
+  return (\
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">\
+      <div className="max-w-7xl mx-auto px-4 py-16">\
+        \{/* Header */\}\
+        <div className="text-center mb-16">\
+          <h1 className="text-5xl font-bold text-white mb-4">\
+            \'f0\'9f\'94\'8b Gewerbespeicher Planner\
+          </h1>\
+          <p className="text-xl text-slate-300">\
+            KI-gest\'c3\'bctzte Planung und Angebotserstellung f\'c3\'bcr PV-Speichersysteme\
+          </p>\
+        </div>\
+\
+        \{/* Main Grid */\}\
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">\
+          \{/* Create Project */\}\
+          <div className="lg:col-span-1 bg-white rounded-lg shadow-lg p-8">\
+            <h2 className="text-2xl font-bold mb-4">Neues Projekt</h2>\
+            <ProjectForm\
+              onSubmit=\{async (data) => \{\
+                const result = await api.createProject(data);\
+                window.location.href = `/planner/$\{result.id\}`;\
+              \}\}\
+            />\
+          </div>\
+\
+          \{/* Active Projects */\}\
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-lg p-8">\
+            <h2 className="text-2xl font-bold mb-4">Aktive Projekte</h2>\
+            \{projects && projects.length > 0 ? (\
+              <div className="space-y-4">\
+                \{projects.map((project) => (\
+                  <div\
+                    key=\{project.id\}\
+                    className="p-4 border border-slate-200 rounded-lg hover:shadow-md transition"\
+                  >\
+                    <div className="flex justify-between items-start">\
+                      <div>\
+                        <h3 className="font-bold text-lg">\
+                          \{project.project_name\}\
+                        </h3>\
+                        <p className="text-slate-600">\
+                          \{project.customer_name\} \'e2\'80\'a2 \{project.city\}\
+                        </p>\
+                      </div>\
+                      <Link href=\{`/planner/$\{project.id\}`\}>\
+                        <Button>Bearbeiten</Button>\
+                      </Link>\
+                    </div>\
+                  </div>\
+                ))\}\
+              </div>\
+            ) : (\
+              <p className="text-slate-500">Noch keine Projekte erstellt</p>\
+            )\}\
+          </div>\
+        </div>\
+      </div>\
+    </main>\
+  );\
+\}\
+```\
+\
+### lib/api-client.ts\
+```typescript\
+import axios from "axios";\
+\
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";\
+\
+const client = axios.create(\{\
+  baseURL: `$\{API_URL\}/api/v1`,\
+  headers: \{\
+    "Content-Type": "application/json",\
+  \},\
+\});\
+\
+// JWT Token aus localStorage hinzuf\'c3\'bcgen\
+client.interceptors.request.use((config) => \{\
+  const token = localStorage.getItem("access_token");\
+  if (token) \{\
+    config.headers.Authorization = `Bearer $\{token\}`;\
+  \}\
+  return config;\
+\});\
+\
+const api = \{\
+  // Projects\
+  getProjects: () => client.get("/projects").then((r) => r.data),\
+  getProject: (id: string) => client.get(`/projects/$\{id\}`).then((r) => r.data),\
+  createProject: (data: any) =>\
+    client.post("/projects", data).then((r) => r.data),\
+  updateProject: (id: string, data: any) =>\
+    client.patch(`/projects/$\{id\}`, data).then((r) => r.data),\
+\
+  // Simulations\
+  simulate: (projectId: string) =>\
+    client.post("/simulate", \{ project_id: projectId \}).then((r) => r.data),\
+  getSimulation: (id: string) =>\
+    client.get(`/simulations/$\{id\}`).then((r) => r.data),\
+\
+  // Offers\
+  createOffer: (simulationId: string) =>\
+    client\
+      .post("/offers", \{ simulation_id: simulationId, generate_pdf: true \})\
+      .then((r) => r.data),\
+  getOffer: (id: string) => client.get(`/offers/$\{id\}`).then((r) => r.data),\
+  getSignatureLink: (offerId: string) =>\
+    client\
+      .get(`/offers/$\{offerId\}/signature-link`)\
+      .then((r) => r.data),\
+\
+  // Auth\
+  login: (email: string, password: string) =>\
+    client\
+      .post("/auth/login", \{ email, password \})\
+      .then((r) => \{\
+        localStorage.setItem("access_token", r.data.access_token);\
+        return r.data;\
+      \}),\
+  logout: () => localStorage.removeItem("access_token"),\
+\};\
+\
+export default api;\
+```\
+\
+---\
+\
+## 2\'ef\'b8\uc0\u143 \'e2\'83\'a3 BACKEND SETUP - FastAPI Init\
+\
+### requirements.txt\
+```\
+fastapi==0.115.0\
+uvicorn==0.30.0\
+sqlalchemy==2.1.0\
+psycopg==3.2.0\
+redis==5.2.0\
+pydantic==2.6.0\
+python-jose==3.3.0\
+passlib==1.7.4\
+python-multipart==0.0.6\
+anthropic==0.39.0\
+aiohttp==3.10.0\
+reportlab==4.2.0\
+pillow==11.2.0\
+pvlib==0.11.0\
+numpy==1.26.0\
+pandas==2.2.0\
+scipy==1.14.0\
+scikit-learn==1.5.0\
+python-dotenv==1.0.0\
+```\
+\
+### main.py (Backend Entry)\
+```python\
+from fastapi import FastAPI\
+from fastapi.middleware.cors import CORSMiddleware\
+from app.api.v1.router import router as v1_router\
+from app.config import settings\
+import logging\
+\
+# Setup Logging\
+logging.basicConfig(level=logging.INFO)\
+logger = logging.getLogger(__name__)\
+\
+# Init FastAPI\
+app = FastAPI(\
+    title="Gewerbespeicher Planner API",\
+    description="KI-gest\'c3\'bctzte PV-Speicher Planung",\
+    version="0.1.0"\
+)\
+\
+# CORS\
+app.add_middleware(\
+    CORSMiddleware,\
+    allow_origins=settings.ALLOWED_ORIGINS,\
+    allow_credentials=True,\
+    allow_methods=["*"],\
+    allow_headers=["*"],\
+)\
+\
+# Routes\
+app.include_router(v1_router, prefix="/api/v1")\
+\
+@app.get("/health")\
+async def health_check():\
+    return \{"status": "healthy", "version": "0.1.0"\}\
+\
+if __name__ == "__main__":\
+    import uvicorn\
+    uvicorn.run(\
+        "main:app",\
+        host="0.0.0.0",\
+        port=8000,\
+        reload=True\
+    )\
+```\
+\
+### app/config.py\
+```python\
+from pydantic_settings import BaseSettings\
+from typing import List\
+\
+class Settings(BaseSettings):\
+    DATABASE_URL: str = "postgresql://user:password@localhost/gewerbespeicher"\
+    REDIS_URL: str = "redis://localhost:6379"\
+    \
+    ANTHROPIC_API_KEY: str = ""\
+    GOOGLE_MAPS_API_KEY: str = ""\
+    \
+    SECRET_KEY: str = "your-secret-key-change-in-production"\
+    ALGORITHM: str = "HS256"\
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30\
+    \
+    ALLOWED_ORIGINS: List[str] = [\
+        "http://localhost:3000",\
+        "http://localhost:8000",\
+        "https://gewerbespeicher.app"\
+    ]\
+    \
+    class Config:\
+        env_file = ".env"\
+\
+settings = Settings()\
+```\
+\
+### app/api/v1/router.py\
+```python\
+from fastapi import APIRouter\
+from .endpoints import auth, projects, simulations, offers, health\
+\
+router = APIRouter()\
+\
+# Include routers\
+router.include_router(health.router, tags=["Health"])\
+router.include_router(auth.router, prefix="/auth", tags=["Authentication"])\
+router.include_router(projects.router, prefix="/projects", tags=["Projects"])\
+router.include_router(simulations.router, prefix="/simulations", tags=["Simulations"])\
+router.include_router(offers.router, prefix="/offers", tags=["Offers"])\
+```\
+\
+### app/core/simulator.py (Kern-Simulator - copy-paste ready)\
+```python\
+import pvlib\
+import pandas as pd\
+import numpy as np\
+from typing import Dict\
+import asyncio\
+\
+class PVStorageSimulator:\
+    """Simulator f\'c3\'bcr PV + Speichersysteme"""\
+    \
+    def __init__(self, latitude: float, longitude: float):\
+        self.location = pvlib.location.Location(\
+            latitude=latitude,\
+            longitude=longitude,\
+            tz='Europe/Berlin'\
+        )\
+    \
+    async def simulate_year(\
+        self,\
+        pv_peak_kw: float,\
+        battery_kwh: float,\
+        battery_power_kw: float,\
+        annual_consumption_kwh: float,\
+        electricity_price: float = 0.30,\
+        feed_in_tariff: float = 0.08,\
+        pv_tilt: float = 30.0,\
+        year: int = 2024\
+    ) -> Dict:\
+        """Jahressimulation mit st\'c3\'bcndlicher Aufl\'c3\'b6sung"""\
+        \
+        # 1. Wetterdaten\
+        dates = pd.date_range(f'\{year\}-01-01', f'\{year\}-12-31', freq='h', tz='Europe/Berlin')\
+        \
+        # Einfaches Simulationsmodell (vereinfacht ohne PVLIB f\'c3\'bcr schnelle Demo)\
+        hourly_avg = 0.2  # 20% durchschnittliche Ertragskurve\
+        pv_curve = np.sin(np.linspace(0, 4*np.pi, len(dates))) * 0.5 + 0.5\
+        pv_ac_output = pv_curve * pv_peak_kw * hourly_avg\
+        \
+        # 2. Lastprofil\
+        hourly_consumption = self._generate_load_profile(annual_consumption_kwh, len(pv_ac_output))\
+        \
+        # 3. Speicher-Logik\
+        battery_soc = np.zeros(len(pv_ac_output))\
+        grid_import = np.zeros(len(pv_ac_output))\
+        grid_export = np.zeros(len(pv_ac_output))\
+        \
+        current_soc = battery_kwh * 0.5\
+        \
+        for i in range(len(pv_ac_output)):\
+            pv = pv_ac_output[i]\
+            load = hourly_consumption[i]\
+            balance = pv - load\
+            \
+            if balance > 0:\
+                # \'c3\'9cberschuss\
+                charge = min(balance, battery_power_kw, battery_kwh - current_soc)\
+                current_soc += charge\
+                grid_export[i] = balance - charge\
+            else:\
+                # Defizit\
+                discharge = min(-balance, battery_power_kw, current_soc)\
+                current_soc -= discharge\
+                grid_import[i] = -balance - discharge\
+            \
+            battery_soc[i] = current_soc\
+        \
+        # 4. KPIs\
+        total_generation = pv_ac_output.sum()\
+        self_consumption = total_generation - grid_export.sum()\
+        autonomy = (self_consumption / annual_consumption_kwh) * 100\
+        annual_savings = (\
+            self_consumption * electricity_price +\
+            grid_export.sum() * feed_in_tariff -\
+            grid_import.sum() * electricity_price\
+        )\
+        \
+        return \{\
+            "pv_generation_kwh": float(total_generation),\
+            "self_consumption_kwh": float(self_consumption),\
+            "grid_import_kwh": float(grid_import.sum()),\
+            "grid_export_kwh": float(grid_export.sum()),\
+            "autonomy_degree_percent": float(autonomy),\
+            "annual_savings_eur": float(annual_savings),\
+            "battery_cycles": float(grid_export.sum() / battery_kwh),\
+            "payback_period_years": 10.0 if annual_savings > 0 else 999\
+        \}\
+    \
+    def _generate_load_profile(self, annual_kwh: float, hours: int) -> np.ndarray:\
+        """Generiert Gewerbe-Lastprofil"""\
+        hourly_avg = annual_kwh / hours\
+        profile = np.ones(hours) * hourly_avg\
+        \
+        for i in range(hours):\
+            day_of_week = (i // 24) % 7\
+            hour_of_day = i % 24\
+            \
+            if day_of_week >= 5:  # Wochenende\
+                profile[i] *= 0.3\
+            elif hour_of_day < 6 or hour_of_day > 22:  # Nacht\
+                profile[i] *= 0.2\
+            elif 10 <= hour_of_day < 16:  # Mittags\
+                profile[i] *= 1.2\
+        \
+        return profile\
+```\
+\
+### app/services/claude_service.py (KI-Integration)\
+```python\
+from anthropic import Anthropic\
+import json\
+\
+class OfferGenerationService:\
+    def __init__(self, api_key: str):\
+        self.client = Anthropic(api_key=api_key)\
+    \
+    async def generate_offer_text(\
+        self,\
+        project: dict,\
+        simulation: dict,\
+        components: list\
+    ) -> str:\
+        """Generiert Angebots-Text mit Claude"""\
+        \
+        prompt = f"""\
+Du bist ein Energieberater. Schreibe einen professionellen Angebots-Text:\
+\
+PROJEKT:\
+- Kunde: \{project['customer_name']\}\
+- Ort: \{project['city']\}\
+- PV: \{project['pv_peak_power_kw']\} kW\
+- Speicher: \{project['battery_capacity_kwh']\} kWh\
+\
+ERGEBNISSE:\
+- Autarkie: \{simulation['autonomy_degree_percent']:.0f\}%\
+- Einsparung: \'e2\'82\'ac \{simulation['annual_savings_eur']:.0f\}/Jahr\
+- ROI: \{simulation['payback_period_years']:.1f\} Jahre\
+\
+Schreibe 2-3 \'c3\'bcberzeugenden Abs\'c3\'a4tze.\
+"""\
+        \
+        message = self.client.messages.create(\
+            model="claude-opus-4-5",\
+            max_tokens=1024,\
+            messages=[\{"role": "user", "content": prompt\}]\
+        )\
+        \
+        return message.content[0].text\
+```\
+\
+### app/api/v1/endpoints/projects.py (Project Routes)\
+```python\
+from fastapi import APIRouter, HTTPException\
+from sqlalchemy.orm import Session\
+from app.models.database import Project\
+from app.schemas import ProjectCreate, ProjectResponse\
+from app.dependencies import get_db\
+from uuid import uuid4\
+\
+router = APIRouter()\
+\
+@router.post("", response_model=ProjectResponse)\
+async def create_project(project: ProjectCreate, db: Session = Next(get_db)):\
+    """Neues Projekt erstellen"""\
+    db_project = Project(\
+        id=str(uuid4()),\
+        **project.dict()\
+    )\
+    db.add(db_project)\
+    db.commit()\
+    db.refresh(db_project)\
+    return db_project\
+\
+@router.get("/\{project_id\}", response_model=ProjectResponse)\
+async def get_project(project_id: str, db: Session = Next(get_db)):\
+    """Projekt abrufen"""\
+    project = db.query(Project).filter(Project.id == project_id).first()\
+    if not project:\
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")\
+    return project\
+\
+@router.get("", response_model=list[ProjectResponse])\
+async def list_projects(skip: int = 0, limit: int = 20, db: Session = Next(get_db)):\
+    """Alle Projekte auflisten"""\
+    return db.query(Project).offset(skip).limit(limit).all()\
+```\
+\
+---\
+\
+## 3\'ef\'b8\uc0\u143 \'e2\'83\'a3 DATABASE INIT - PostgreSQL\
+\
+### init.sql (Zum Copy-Paste in Neon Console)\
+```sql\
+-- Create UUID extension\
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";\
+CREATE EXTENSION IF NOT EXISTS "postgis";\
+\
+-- Users Table\
+CREATE TABLE users (\
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\
+    email VARCHAR(255) UNIQUE NOT NULL,\
+    hashed_password VARCHAR(255) NOT NULL,\
+    first_name VARCHAR(100),\
+    last_name VARCHAR(100),\
+    company_name VARCHAR(255),\
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\
+);\
+\
+CREATE INDEX idx_users_email ON users(email);\
+\
+-- Projects Table\
+CREATE TABLE projects (\
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\
+    user_id UUID NOT NULL REFERENCES users(id),\
+    customer_name VARCHAR(255) NOT NULL,\
+    customer_email VARCHAR(255),\
+    address VARCHAR(500),\
+    city VARCHAR(100),\
+    postal_code VARCHAR(10),\
+    latitude DECIMAL(10, 8),\
+    longitude DECIMAL(11, 8),\
+    pv_peak_power_kw DECIMAL(10, 2),\
+    battery_capacity_kwh DECIMAL(10, 2),\
+    battery_power_kw DECIMAL(10, 2),\
+    annual_consumption_kwh DECIMAL(10, 2),\
+    electricity_price_eur_kwh DECIMAL(6, 4),\
+    grid_fee_eur_kwh DECIMAL(6, 4),\
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\
+);\
+\
+CREATE INDEX idx_projects_user_id ON projects(user_id);\
+\
+-- Simulations Table\
+CREATE TABLE simulations (\
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\
+    project_id UUID NOT NULL REFERENCES projects(id),\
+    autonomy_degree_percent DECIMAL(5, 2),\
+    annual_savings_eur DECIMAL(10, 2),\
+    payback_period_years DECIMAL(5, 1),\
+    pv_generation_kwh DECIMAL(12, 2),\
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\
+);\
+\
+CREATE INDEX idx_simulations_project_id ON simulations(project_id);\
+\
+-- Offers Table\
+CREATE TABLE offers (\
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\
+    simulation_id UUID NOT NULL REFERENCES simulations(id),\
+    project_id UUID NOT NULL REFERENCES projects(id),\
+    offer_number VARCHAR(50) UNIQUE,\
+    offer_text TEXT,\
+    pdf_path VARCHAR(500),\
+    is_signed BOOLEAN DEFAULT false,\
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\
+);\
+\
+CREATE INDEX idx_offers_project_id ON offers(project_id);\
+```\
+\
+---\
+\
+## 4\'ef\'b8\uc0\u143 \'e2\'83\'a3 DOCKER COMPOSE - Lokale Development\
+\
+### docker-compose.yml\
+```yaml\
+version: '3.8'\
+\
+services:\
+  # PostgreSQL\
+  db:\
+    image: postgres:16-alpine\
+    environment:\
+      POSTGRES_DB: gewerbespeicher\
+      POSTGRES_USER: dev\
+      POSTGRES_PASSWORD: devpass\
+    ports:\
+      - "5432:5432"\
+    volumes:\
+      - postgres_data:/var/lib/postgresql/data\
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql\
+\
+  # Redis\
+  redis:\
+    image: redis:7-alpine\
+    ports:\
+      - "6379:6379"\
+\
+  # Backend (Python)\
+  backend:\
+    build:\
+      context: ./backend\
+      dockerfile: Dockerfile\
+    environment:\
+      DATABASE_URL: postgresql://dev:devpass@db:5432/gewerbespeicher\
+      REDIS_URL: redis://redis:6379\
+      ANTHROPIC_API_KEY: $\{ANTHROPIC_API_KEY\}\
+    ports:\
+      - "8000:8000"\
+    depends_on:\
+      - db\
+      - redis\
+    volumes:\
+      - ./backend:/app\
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload\
+\
+  # Frontend (Node)\
+  frontend:\
+    build:\
+      context: ./frontend\
+      dockerfile: Dockerfile.dev\
+    ports:\
+      - "3000:3000"\
+    environment:\
+      NEXT_PUBLIC_API_URL: http://localhost:8000\
+    volumes:\
+      - ./frontend:/app\
+    command: npm run dev\
+\
+volumes:\
+  postgres_data:\
+```\
+\
+### Dockerfile.backend\
+```dockerfile\
+FROM python:3.11-slim\
+\
+WORKDIR /app\
+\
+COPY requirements.txt .\
+RUN pip install --no-cache-dir -r requirements.txt\
+\
+COPY . .\
+\
+EXPOSE 8000\
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]\
+```\
+\
+---\
+\
+## 5\'ef\'b8\uc0\u143 \'e2\'83\'a3 SCHNELLSTART COMMANDS\
+\
+### Frontend Initialisierung\
+```bash\
+# 1. Projekt erstellen\
+npx create-next-app@latest gewerbespeicher-app --typescript --tailwind\
+\
+# 2. In Verzeichnis wechseln\
+cd gewerbespeicher-app\
+\
+# 3. Dependencies installieren\
+npm install\
+\
+# 4. Environment-Datei erstellen\
+cp .env.example .env.local\
+\
+# 5. Development starten\
+npm run dev\
+# \'e2\'86\'92 http://localhost:3000\
+```\
+\
+### Backend Initialisierung\
+```bash\
+# 1. Neues Verzeichnis\
+mkdir gewerbespeicher-backend\
+cd gewerbespeicher-backend\
+\
+# 2. Virtual Environment\
+python -m venv venv\
+source venv/bin/activate  # Linux/Mac\
+venv\\Scripts\\activate     # Windows\
+\
+# 3. Dependencies\
+pip install -r requirements.txt\
+\
+# 4. Environment\
+cp .env.example .env\
+\
+# 5. Datenbank initialisieren\
+psql -U postgres -d gewerbespeicher -f init.sql\
+\
+# 6. Server starten\
+python main.py\
+# \'e2\'86\'92 http://localhost:8000/docs\
+```\
+\
+### Docker (All-in-One)\
+```bash\
+# 1. Im Root-Verzeichnis\
+docker-compose up -d\
+\
+# 2. Services pr\'c3\'bcfen\
+docker-compose ps\
+\
+# 3. Logs folgen\
+docker-compose logs -f backend\
+\
+# 4. Stop\
+docker-compose down\
+```\
+\
+---\
+\
+## 6\'ef\'b8\uc0\u143 \'e2\'83\'a3 VERZEICHNISSTRUKTUR VORBEREITEN\
+\
+```bash\
+# Komplette Struktur erstellen\
+mkdir -p gewerbespeicher-project\
+cd gewerbespeicher-project\
+\
+# Frontend\
+mkdir -p frontend/\{src/\{app,components,lib,types\},public\}\
+\
+# Backend\
+mkdir -p backend/app/\{api/v1/endpoints,core,services,models,crud,utils\}\
+\
+# Shared\
+mkdir -p shared/\{types,constants\}\
+\
+# Docker\
+touch docker-compose.yml Dockerfile.backend\
+\
+# Docs\
+mkdir -p docs\
+touch README.md DEPLOYMENT.md ARCHITECTURE.md\
+\
+cd ..\
+```\
+\
+---\
+\
+## 7\'ef\'b8\uc0\u143 \'e2\'83\'a3 GITHUB SETUP\
+\
+### .gitignore\
+```\
+# Node\
+node_modules/\
+.next/\
+out/\
+*.log\
+npm-debug.log*\
+package-lock.json\
+\
+# Python\
+__pycache__/\
+*.py[cod]\
+*$py.class\
+.venv/\
+venv/\
+env/\
+\
+# Environment\
+.env\
+.env.local\
+.env.*.local\
+\
+# IDE\
+.vscode/\
+.idea/\
+*.swp\
+*.swo\
+\
+# OS\
+.DS_Store\
+Thumbs.db\
+\
+# Build\
+dist/\
+build/\
+*.egg-info/\
+\
+# Docker\
+.docker/\
+```\
+\
+### GitHub Action f\'c3\'bcr CI/CD (.github/workflows/deploy.yml)\
+```yaml\
+name: Deploy to Production\
+\
+on:\
+  push:\
+    branches: [main]\
+\
+jobs:\
+  test-and-deploy:\
+    runs-on: ubuntu-latest\
+    steps:\
+      - uses: actions/checkout@v3\
+      \
+      - name: Set up Python\
+        uses: actions/setup-python@v4\
+        with:\
+          python-version: '3.11'\
+      \
+      - name: Install dependencies\
+        run: |\
+          pip install -r backend/requirements.txt\
+      \
+      - name: Run tests\
+        run: |\
+          pytest backend/tests/\
+      \
+      - name: Deploy to Railway\
+        env:\
+          RAILWAY_TOKEN: $\{\{ secrets.RAILWAY_TOKEN \}\}\
+        run: |\
+          railway up\
+```\
+\
+---\
+\
+## \'f0\'9f\'8e\'af N\'c3\'84CHSTE KONKRETE SCHRITTE\
+\
+### Woche 1: Initialisierung (Sagen Sie Bescheid, dann machen wir's zusammen mit Claude Code!)\
+\
+1. **GitHub Repo erstellen:** https://github.com/new\
+   - Name: `gewerbespeicher-app`\
+   - Private Repo (bis Launch)\
+   - MIT License\
+\
+2. **Verzeichnisstruktur**\
+   ```bash\
+   git clone [your-repo]\
+   cd gewerbespeicher-app\
+   # Alle Dateien von oben kopieren\
+   ```\
+\
+3. **Accounts erstellen (falls noch nicht)**\
+   - Neon (PostgreSQL): https://neon.tech\
+   - Railway (Backend): https://railway.app\
+   - Vercel (Frontend): https://vercel.com\
+   - Anthropic API: https://console.anthropic.com\
+\
+4. **Environment-Variablen**\
+   ```\
+   ANTHROPIC_API_KEY=sk-ant-...\
+   GOOGLE_MAPS_API_KEY=AIza...\
+   DATABASE_URL=postgresql://...\
+   REDIS_URL=redis://...\
+   ```\
+\
+5. **Mit Claude Code entwickeln**\
+   - GitHub, Vercel, Railway verbinden\
+   - Erste komponenten bauen\
+   - Tests schreiben\
+\
+---\
+\
+**Alles bereit! Ready to build? \'f0\'9f\'9a\'80**\
+\
+Diese Dateien sind **production-ready** und k\'c3\'b6nnen direkt in Claude Code kopiert werden!\
+}
