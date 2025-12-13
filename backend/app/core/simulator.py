@@ -5,7 +5,6 @@ Core simulation engine using simplified physics model
 
 import numpy as np
 from typing import Dict
-from datetime import datetime
 
 
 class PVStorageSimulator:
@@ -125,6 +124,7 @@ class PVStorageSimulator:
             "grid_import_kwh": round(total_grid_import, 2),
             "grid_export_kwh": round(total_grid_export, 2),
             "autonomy_degree_percent": round(autonomy_degree, 1),
+            "self_consumption_ratio_percent": round(self_consumption_ratio, 1),
             "annual_savings_eur": round(annual_savings, 2),
             "payback_period_years": round(payback_years, 1),
             "battery_cycles": round(battery_cycles, 1),

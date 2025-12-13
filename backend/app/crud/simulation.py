@@ -41,7 +41,7 @@ async def get_latest_simulation(
     result = await db.execute(
         select(Simulation)
         .where(Simulation.project_id == project_id)
-        .where(Simulation.is_latest == True)
+        .where(Simulation.is_latest.is_(True))
         .order_by(Simulation.created_at.desc())
         .limit(1)
     )
@@ -59,7 +59,7 @@ async def create_simulation(
     await db.execute(
         update(Simulation)
         .where(Simulation.project_id == project_id)
-        .where(Simulation.is_latest == True)
+        .where(Simulation.is_latest.is_(True))
         .values(is_latest=False)
     )
 

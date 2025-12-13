@@ -31,7 +31,7 @@ async def get_components(
     conditions = []
 
     if is_active:
-        conditions.append(Component.is_active == True)
+        conditions.append(Component.is_active.is_(True))
     if category:
         conditions.append(Component.category == category)
     if manufacturer:
@@ -66,7 +66,7 @@ async def get_components_by_category(
     """Get all components in a category"""
     conditions = [Component.category == category]
     if is_active:
-        conditions.append(Component.is_active == True)
+        conditions.append(Component.is_active.is_(True))
 
     result = await db.execute(
         select(Component)

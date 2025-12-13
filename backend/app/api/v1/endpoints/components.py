@@ -12,7 +12,7 @@ from uuid import UUID
 from app.database import get_db
 from app.models.component import Component
 from app.crud import component as component_crud
-from app.api.deps import get_current_admin_user, get_optional_current_user
+from app.api.deps import get_current_admin_user
 from app.models.user import User
 
 

@@ -5,7 +5,7 @@ SQLAlchemy async setup with PostgreSQL (Neon Serverless Compatible)
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import NullPool, QueuePool
+from sqlalchemy.pool import NullPool
 from typing import AsyncGenerator
 import ssl
 
