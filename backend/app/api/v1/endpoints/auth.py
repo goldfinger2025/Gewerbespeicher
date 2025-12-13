@@ -3,14 +3,20 @@ Authentication Endpoints
 Login, Register, Token Refresh
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel, EmailStr
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from typing import Optional
 
 from app.config import settings
+from app.database import get_db
+from app.models.user import User
+from app.crud import user as user_crud
+from app.api.deps import get_current_user
+
 
 router = APIRouter()
 
@@ -26,6 +32,7 @@ class UserRegister(BaseModel):
     first_name: str
     last_name: str
     company_name: Optional[str] = None
+    phone: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -39,12 +46,21 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 class UserResponse(BaseModel):
     id: str
     email: str
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     company_name: Optional[str] = None
+    phone: Optional[str] = None
+    is_admin: bool = False
+
+    class Config:
+        from_attributes = True
 
 
 # ============ HELPER FUNCTIONS ============
@@ -66,7 +82,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
@@ -81,40 +97,81 @@ def create_refresh_token(data: dict) -> str:
 
 # ============ ENDPOINTS ============
 
-@router.post("/register", response_model=UserResponse)
-async def register(user: UserRegister):
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def register(
+    user_data: UserRegister,
+    db: AsyncSession = Depends(get_db)
+):
     """
     Register a new user
     """
-    # TODO: Check if email already exists in database
-    # TODO: Save user to database
-    
-    # For MVP, return mock response
-    user_id = "user-" + str(hash(user.email))[:8]
-    
+    # Check if email already exists
+    existing_user = await user_crud.get_user_by_email(db, user_data.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="E-Mail-Adresse bereits registriert"
+        )
+
+    # Hash password and create user
+    hashed_password = hash_password(user_data.password)
+
+    user = await user_crud.create_user(
+        db=db,
+        email=user_data.email,
+        hashed_password=hashed_password,
+        first_name=user_data.first_name,
+        last_name=user_data.last_name,
+        company_name=user_data.company_name,
+        phone=user_data.phone,
+    )
+
     return UserResponse(
-        id=user_id,
+        id=str(user.id),
         email=user.email,
         first_name=user.first_name,
         last_name=user.last_name,
-        company_name=user.company_name
+        company_name=user.company_name,
+        phone=user.phone,
+        is_admin=user.is_admin,
     )
 
 
 @router.post("/login", response_model=Token)
-async def login(credentials: UserLogin):
+async def login(
+    credentials: UserLogin,
+    db: AsyncSession = Depends(get_db)
+):
     """
     Login and receive JWT tokens
     """
-    # TODO: Verify credentials against database
-    # TODO: Check if user exists and password matches
-    
-    # For MVP, accept any credentials and return tokens
-    user_id = "user-" + str(hash(credentials.email))[:8]
-    
-    access_token = create_access_token({"sub": user_id, "email": credentials.email})
-    refresh_token = create_refresh_token({"sub": user_id})
-    
+    # Get user by email
+    user = await user_crud.get_user_by_email(db, credentials.email)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ungültige E-Mail oder Passwort"
+        )
+
+    # Verify password
+    if not verify_password(credentials.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ungültige E-Mail oder Passwort"
+        )
+
+    # Check if user is active
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Benutzer ist deaktiviert"
+        )
+
+    # Create tokens with user UUID
+    access_token = create_access_token({"sub": str(user.id), "email": user.email})
+    refresh_token = create_refresh_token({"sub": str(user.id)})
+
     return Token(
         access_token=access_token,
         refresh_token=refresh_token
@@ -122,48 +179,105 @@ async def login(credentials: UserLogin):
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(refresh_token: str):
+async def refresh_token(
+    request: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db)
+):
     """
     Refresh access token using refresh token
     """
     try:
         payload = jwt.decode(
-            refresh_token,
+            request.refresh_token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
-        
+
         if payload.get("type") != "refresh":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        
-        new_access_token = create_access_token({"sub": user_id})
-        new_refresh_token = create_refresh_token({"sub": user_id})
-        
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Ungültiger Token-Typ"
+            )
+
+        user_id_str = payload.get("sub")
+        if not user_id_str:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Ungültiger Token"
+            )
+
+        # Verify user still exists and is active
+        from uuid import UUID
+        user_id = UUID(user_id_str)
+        user = await user_crud.get_user_by_id(db, user_id)
+
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Benutzer nicht gefunden oder deaktiviert"
+            )
+
+        # Create new tokens
+        new_access_token = create_access_token({"sub": str(user.id), "email": user.email})
+        new_refresh_token = create_refresh_token({"sub": str(user.id)})
+
         return Token(
             access_token=new_access_token,
             refresh_token=new_refresh_token
         )
-        
+
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ungültiger Token"
+        )
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user():
+async def get_current_user_info(
+    current_user: User = Depends(get_current_user)
+):
     """
     Get current authenticated user
     """
-    # TODO: Extract user from JWT token
-    # TODO: Fetch user from database
-    
     return UserResponse(
-        id="user-demo",
-        email="demo@ews-gmbh.de",
-        first_name="Demo",
-        last_name="User",
-        company_name="EWS GmbH"
+        id=str(current_user.id),
+        email=current_user.email,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        company_name=current_user.company_name,
+        phone=current_user.phone,
+        is_admin=current_user.is_admin,
+    )
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_current_user(
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    company_name: Optional[str] = None,
+    phone: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update current user's profile
+    """
+    updated_user = await user_crud.update_user(
+        db=db,
+        user=current_user,
+        first_name=first_name,
+        last_name=last_name,
+        company_name=company_name,
+        phone=phone,
+    )
+
+    return UserResponse(
+        id=str(updated_user.id),
+        email=updated_user.email,
+        first_name=updated_user.first_name,
+        last_name=updated_user.last_name,
+        company_name=updated_user.company_name,
+        phone=updated_user.phone,
+        is_admin=updated_user.is_admin,
     )

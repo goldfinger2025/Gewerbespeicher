@@ -4,7 +4,7 @@ Combines all endpoint routers
 """
 
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, projects, simulations, offers, health, components, optimize
+from app.api.v1.endpoints import auth, projects, simulations, offers, health, components, optimize, analytics
 
 router = APIRouter()
 
@@ -48,4 +48,10 @@ router.include_router(
     optimize.router,
     prefix="/ai",
     tags=["AI & Optimization"]
+)
+
+router.include_router(
+    analytics.router,
+    prefix="/analytics",
+    tags=["Analytics"]
 )

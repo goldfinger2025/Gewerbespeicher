@@ -3,9 +3,18 @@ Components Endpoints
 Component catalog for inverters, batteries, PV modules
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends, HTTPException, status
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, List, Dict, Any
+from uuid import UUID
+
+from app.database import get_db
+from app.models.component import Component
+from app.crud import component as component_crud
+from app.api.deps import get_current_admin_user, get_optional_current_user
+from app.models.user import User
+
 
 router = APIRouter()
 
@@ -19,17 +28,47 @@ class ComponentResponse(BaseModel):
     manufacturer: str
     model: str
     description: Optional[str] = None
-    specification: Dict
-    unit_price_eur: float
-    availability_status: str
+    specification: Optional[Dict[str, Any]] = None
+    unit_price_eur: Optional[float] = None
+    availability_status: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
-# ============ SAMPLE DATA ============
+class ComponentListResponse(BaseModel):
+    total: int
+    items: List[ComponentResponse]
+
+
+class ComponentCreate(BaseModel):
+    category: str
+    subcategory: Optional[str] = None
+    manufacturer: str
+    model: str
+    description: Optional[str] = None
+    specification: Optional[Dict[str, Any]] = None
+    unit_price_eur: Optional[float] = None
+    supplier_sku: Optional[str] = None
+    availability_status: Optional[str] = "in_stock"
+
+
+class ComponentUpdate(BaseModel):
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+    description: Optional[str] = None
+    specification: Optional[Dict[str, Any]] = None
+    unit_price_eur: Optional[float] = None
+    supplier_sku: Optional[str] = None
+    availability_status: Optional[str] = None
+
+
+# ============ SAMPLE DATA (for seeding) ============
 
 SAMPLE_COMPONENTS = [
-    # Batteries
     {
-        "id": "bat-001",
         "category": "battery",
         "subcategory": "commercial",
         "manufacturer": "BYD",
@@ -46,7 +85,6 @@ SAMPLE_COMPONENTS = [
         "availability_status": "in_stock"
     },
     {
-        "id": "bat-002",
         "category": "battery",
         "subcategory": "commercial",
         "manufacturer": "Huawei",
@@ -63,7 +101,6 @@ SAMPLE_COMPONENTS = [
         "availability_status": "in_stock"
     },
     {
-        "id": "bat-003",
         "category": "battery",
         "subcategory": "large_scale",
         "manufacturer": "SolarEdge",
@@ -79,10 +116,7 @@ SAMPLE_COMPONENTS = [
         "unit_price_eur": 18500.00,
         "availability_status": "on_order"
     },
-    
-    # Inverters
     {
-        "id": "inv-001",
         "category": "inverter",
         "subcategory": "hybrid",
         "manufacturer": "Fronius",
@@ -98,7 +132,6 @@ SAMPLE_COMPONENTS = [
         "availability_status": "in_stock"
     },
     {
-        "id": "inv-002",
         "category": "inverter",
         "subcategory": "commercial",
         "manufacturer": "Huawei",
@@ -114,7 +147,6 @@ SAMPLE_COMPONENTS = [
         "availability_status": "in_stock"
     },
     {
-        "id": "inv-003",
         "category": "inverter",
         "subcategory": "commercial",
         "manufacturer": "SMA",
@@ -129,10 +161,7 @@ SAMPLE_COMPONENTS = [
         "unit_price_eur": 3900.00,
         "availability_status": "in_stock"
     },
-    
-    # PV Modules
     {
-        "id": "pv-001",
         "category": "pv_module",
         "subcategory": "monocrystalline",
         "manufacturer": "Trina Solar",
@@ -148,7 +177,6 @@ SAMPLE_COMPONENTS = [
         "availability_status": "in_stock"
     },
     {
-        "id": "pv-002",
         "category": "pv_module",
         "subcategory": "monocrystalline",
         "manufacturer": "JA Solar",
@@ -166,62 +194,213 @@ SAMPLE_COMPONENTS = [
 ]
 
 
+# ============ HELPER FUNCTIONS ============
+
+def component_to_response(component: Component) -> ComponentResponse:
+    """Convert SQLAlchemy Component model to Pydantic response"""
+    return ComponentResponse(
+        id=str(component.id),
+        category=component.category,
+        subcategory=component.subcategory,
+        manufacturer=component.manufacturer,
+        model=component.model,
+        description=component.description,
+        specification=component.specification,
+        unit_price_eur=component.unit_price_eur,
+        availability_status=component.availability_status,
+    )
+
+
 # ============ ENDPOINTS ============
 
-@router.get("", response_model=List[ComponentResponse])
+@router.get("", response_model=ComponentListResponse)
 async def list_components(
     category: Optional[str] = Query(None, description="Filter by category"),
     manufacturer: Optional[str] = Query(None, description="Filter by manufacturer"),
     min_price: Optional[float] = Query(None, description="Minimum price"),
-    max_price: Optional[float] = Query(None, description="Maximum price")
+    max_price: Optional[float] = Query(None, description="Maximum price"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     List all components with optional filters
     """
-    components = SAMPLE_COMPONENTS
-    
-    # Apply filters
-    if category:
-        components = [c for c in components if c["category"] == category]
-    
-    if manufacturer:
-        components = [c for c in components if c["manufacturer"].lower() == manufacturer.lower()]
-    
-    if min_price is not None:
-        components = [c for c in components if c["unit_price_eur"] >= min_price]
-    
-    if max_price is not None:
-        components = [c for c in components if c["unit_price_eur"] <= max_price]
-    
-    return [ComponentResponse(**c) for c in components]
+    components, total = await component_crud.get_components(
+        db=db,
+        skip=skip,
+        limit=limit,
+        category=category,
+        manufacturer=manufacturer,
+        min_price=min_price,
+        max_price=max_price,
+    )
 
-
-@router.get("/{component_id}", response_model=ComponentResponse)
-async def get_component(component_id: str):
-    """
-    Get component details by ID
-    """
-    for component in SAMPLE_COMPONENTS:
-        if component["id"] == component_id:
-            return ComponentResponse(**component)
-    
-    from fastapi import HTTPException
-    raise HTTPException(status_code=404, detail="Komponente nicht gefunden")
+    return ComponentListResponse(
+        total=total,
+        items=[component_to_response(c) for c in components]
+    )
 
 
 @router.get("/categories/list")
-async def list_categories():
+async def list_categories(db: AsyncSession = Depends(get_db)):
     """
     List all available component categories
     """
-    categories = set(c["category"] for c in SAMPLE_COMPONENTS)
+    components, _ = await component_crud.get_components(db=db, limit=1000)
+    categories = set(c.category for c in components)
     return {"categories": sorted(categories)}
 
 
 @router.get("/manufacturers/list")
-async def list_manufacturers():
+async def list_manufacturers(
+    category: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
     """
     List all available manufacturers
     """
-    manufacturers = set(c["manufacturer"] for c in SAMPLE_COMPONENTS)
-    return {"manufacturers": sorted(manufacturers)}
+    manufacturers = await component_crud.get_manufacturers(db=db, category=category)
+    return {"manufacturers": manufacturers}
+
+
+@router.get("/{component_id}", response_model=ComponentResponse)
+async def get_component(
+    component_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get component details by ID
+    """
+    try:
+        uuid_id = UUID(component_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ungültige Komponenten-ID"
+        )
+
+    component = await component_crud.get_component_by_id(db=db, component_id=uuid_id)
+
+    if not component:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Komponente nicht gefunden"
+        )
+
+    return component_to_response(component)
+
+
+@router.post("", response_model=ComponentResponse, status_code=status.HTTP_201_CREATED)
+async def create_component(
+    component_data: ComponentCreate,
+    current_user: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create a new component (admin only)
+    """
+    component = await component_crud.create_component(
+        db=db,
+        category=component_data.category,
+        manufacturer=component_data.manufacturer,
+        model=component_data.model,
+        subcategory=component_data.subcategory,
+        description=component_data.description,
+        specification=component_data.specification,
+        unit_price_eur=component_data.unit_price_eur,
+        supplier_sku=component_data.supplier_sku,
+        availability_status=component_data.availability_status,
+    )
+
+    return component_to_response(component)
+
+
+@router.patch("/{component_id}", response_model=ComponentResponse)
+async def update_component(
+    component_id: str,
+    component_data: ComponentUpdate,
+    current_user: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update a component (admin only)
+    """
+    try:
+        uuid_id = UUID(component_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ungültige Komponenten-ID"
+        )
+
+    component = await component_crud.get_component_by_id(db=db, component_id=uuid_id)
+
+    if not component:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Komponente nicht gefunden"
+        )
+
+    update_data = component_data.model_dump(exclude_unset=True)
+
+    updated_component = await component_crud.update_component(
+        db=db,
+        component=component,
+        **update_data
+    )
+
+    return component_to_response(updated_component)
+
+
+@router.delete("/{component_id}", status_code=status.HTTP_200_OK)
+async def delete_component(
+    component_id: str,
+    current_user: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Deactivate a component (admin only)
+    """
+    try:
+        uuid_id = UUID(component_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ungültige Komponenten-ID"
+        )
+
+    component = await component_crud.get_component_by_id(db=db, component_id=uuid_id)
+
+    if not component:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Komponente nicht gefunden"
+        )
+
+    await component_crud.deactivate_component(db=db, component=component)
+
+    return {"message": "Komponente deaktiviert", "id": component_id}
+
+
+@router.post("/seed", status_code=status.HTTP_201_CREATED)
+async def seed_components(
+    current_user: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Seed database with sample components (admin only)
+    """
+    created = []
+
+    for comp_data in SAMPLE_COMPONENTS:
+        component = await component_crud.create_component(
+            db=db,
+            **comp_data
+        )
+        created.append(component_to_response(component))
+
+    return {
+        "message": f"{len(created)} Komponenten erstellt",
+        "components": created
+    }

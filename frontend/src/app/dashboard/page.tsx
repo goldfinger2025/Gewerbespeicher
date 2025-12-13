@@ -226,7 +226,7 @@ export default function DashboardPage() {
         </Link>
 
         <Link
-          href="/dashboard/settings"
+          href="/dashboard/analytics"
           className="card hover:shadow-lg transition group"
         >
           <div className="flex items-center gap-4">

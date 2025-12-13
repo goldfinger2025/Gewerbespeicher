@@ -15,10 +15,18 @@ import {
   RefreshCw,
   Sparkles,
   ChevronRight,
+  BarChart3,
+  Workflow,
+  Euro,
 } from "lucide-react";
 import api from "@/lib/api-client";
 import { SimulationResults } from "@/components/visualizations/SimulationResults";
+import { EnergyFlowDiagram } from "@/components/visualizations/EnergyFlowDiagram";
+import { BatteryInsights } from "@/components/visualizations/BatteryInsights";
+import { FinancialAnalysis } from "@/components/visualizations/FinancialAnalysis";
 import { ProjectForm } from "@/components/forms/ProjectForm";
+
+type ResultsView = "overview" | "energy-flow" | "battery" | "financial";
 
 export default function PlannerPage() {
   const params = useParams();
@@ -27,6 +35,7 @@ export default function PlannerPage() {
   const projectId = params?.id as string | undefined;
 
   const [activeTab, setActiveTab] = useState<"config" | "results" | "offer">("config");
+  const [resultsView, setResultsView] = useState<ResultsView>("overview");
   const [isSimulating, setIsSimulating] = useState(false);
 
   // Fetch project if editing
@@ -62,7 +71,7 @@ export default function PlannerPage() {
   // Run simulation
   const runSimulation = async () => {
     if (!projectId) return;
-    
+
     setIsSimulating(true);
     try {
       await refetchSimulation();
@@ -96,6 +105,14 @@ export default function PlannerPage() {
       </div>
     );
   }
+
+  // Results sub-navigation
+  const resultsNavItems = [
+    { id: "overview" as ResultsView, label: "Übersicht", icon: BarChart3 },
+    { id: "energy-flow" as ResultsView, label: "Energiefluss", icon: Workflow },
+    { id: "battery" as ResultsView, label: "Batterie", icon: Battery },
+    { id: "financial" as ResultsView, label: "Wirtschaftlichkeit", icon: Euro },
+  ];
 
   return (
     <div className="space-y-6">
@@ -177,7 +194,7 @@ export default function PlannerPage() {
                 Ergebnisse
                 {simulation && (
                   <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">
-                    ✓
+                    4 Ansichten
                   </span>
                 )}
               </span>
@@ -269,7 +286,7 @@ export default function PlannerPage() {
                           KI-Optimierung
                         </h3>
                         <p className="text-sm text-purple-700 mt-1">
-                          Lassen Sie Claude die optimale Systemgröße für Ihren 
+                          Lassen Sie Claude die optimale Systemgröße für Ihren
                           Anwendungsfall berechnen.
                         </p>
                         <button className="text-sm text-purple-600 font-medium mt-2 flex items-center gap-1 hover:text-purple-700">
@@ -287,13 +304,106 @@ export default function PlannerPage() {
 
         {activeTab === "results" && simulation && (
           <div className="space-y-6">
-            <SimulationResults
-              results={simulation.results}
-              projectName={project?.project_name}
-            />
+            {/* Results Sub-Navigation */}
+            <div className="flex flex-wrap gap-2 bg-slate-100 p-1 rounded-lg w-fit">
+              {resultsNavItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setResultsView(item.id)}
+                  className={`
+                    flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition
+                    ${resultsView === item.id
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"}
+                  `}
+                >
+                  <item.icon className="w-4 h-4" />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Results Content */}
+            <div className="animate-fade-in">
+              {resultsView === "overview" && (
+                <SimulationResults
+                  results={simulation.results}
+                  projectName={project?.project_name}
+                />
+              )}
+
+              {resultsView === "energy-flow" && (
+                <div className="grid lg:grid-cols-2 gap-6">
+                  <EnergyFlowDiagram
+                    pvGeneration={simulation.results?.pv_generation_kwh || 0}
+                    selfConsumption={simulation.results?.self_consumption_kwh || 0}
+                    gridExport={simulation.results?.grid_export_kwh || 0}
+                    gridImport={simulation.results?.grid_import_kwh || 0}
+                    batteryCapacity={project?.battery_capacity_kwh || 0}
+                  />
+                  <div className="card">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4">Energiebilanz</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                        <span className="text-slate-600">PV-Erzeugung</span>
+                        <span className="font-semibold text-amber-600">
+                          {(simulation.results?.pv_generation_kwh || 0).toLocaleString('de-DE')} kWh/a
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                        <span className="text-slate-600">Eigenverbrauch</span>
+                        <span className="font-semibold text-emerald-600">
+                          {(simulation.results?.self_consumption_kwh || 0).toLocaleString('de-DE')} kWh/a
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                        <span className="text-slate-600">Netzeinspeisung</span>
+                        <span className="font-semibold text-violet-600">
+                          {(simulation.results?.grid_export_kwh || 0).toLocaleString('de-DE')} kWh/a
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-3">
+                        <span className="text-slate-600">Netzbezug</span>
+                        <span className="font-semibold text-blue-600">
+                          {(simulation.results?.grid_import_kwh || 0).toLocaleString('de-DE')} kWh/a
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-6 p-4 bg-emerald-50 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-emerald-800">Autarkiegrad</span>
+                        <span className="text-2xl font-bold text-emerald-600">
+                          {(simulation.results?.autonomy_degree_percent || 0).toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {resultsView === "battery" && (
+                <BatteryInsights
+                  batteryCapacity={project?.battery_capacity_kwh || 0}
+                  batteryCycles={simulation.results?.battery_cycles || 0}
+                  selfConsumption={simulation.results?.self_consumption_kwh || 0}
+                  pvGeneration={simulation.results?.pv_generation_kwh || 0}
+                  annualSavings={simulation.results?.annual_savings_eur || 0}
+                />
+              )}
+
+              {resultsView === "financial" && (
+                <FinancialAnalysis
+                  annualSavings={simulation.results?.annual_savings_eur || 0}
+                  paybackYears={simulation.results?.payback_period_years || 0}
+                  pvPeakKw={project?.pv_peak_power_kw || 0}
+                  batteryCapacityKwh={project?.battery_capacity_kwh || 0}
+                  electricityPrice={project?.electricity_price_eur_kwh || 0.30}
+                />
+              )}
+            </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-4">
+            <div className="flex justify-end gap-4 pt-4 border-t border-slate-200">
               <button
                 onClick={runSimulation}
                 disabled={isSimulating}
@@ -326,7 +436,7 @@ export default function PlannerPage() {
                 Angebot generieren
               </h3>
               <p className="text-slate-500 mb-6 max-w-md mx-auto">
-                Erstellen Sie ein professionelles Angebot mit KI-generiertem Text, 
+                Erstellen Sie ein professionelles Angebot mit KI-generiertem Text,
                 detaillierter Wirtschaftlichkeitsberechnung und Komponentenliste.
               </p>
               <button
