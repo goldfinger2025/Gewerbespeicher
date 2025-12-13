@@ -1,12 +1,13 @@
 """
 Database Configuration
-SQLAlchemy async setup with PostgreSQL
+SQLAlchemy async setup with PostgreSQL (Neon Serverless Compatible)
 """
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, QueuePool
 from typing import AsyncGenerator
+import ssl
 
 from app.config import settings
 
@@ -22,13 +23,41 @@ def get_async_database_url() -> str:
     return url
 
 
+def get_engine_kwargs() -> dict:
+    """
+    Get engine configuration based on environment.
+    Neon requires NullPool for serverless and SSL for connections.
+    """
+    base_kwargs = {
+        "echo": settings.DEBUG,
+        "pool_pre_ping": True,
+    }
+
+    # Production (Neon Serverless) - use NullPool and SSL
+    if settings.ENVIRONMENT == "production":
+        return {
+            **base_kwargs,
+            "poolclass": NullPool,  # Required for serverless
+            "connect_args": {
+                "ssl": ssl.create_default_context(),
+                "server_settings": {
+                    "application_name": "gewerbespeicher-api"
+                }
+            }
+        }
+
+    # Development - use connection pooling
+    return {
+        **base_kwargs,
+        "pool_size": settings.DATABASE_POOL_SIZE,
+        "max_overflow": settings.DATABASE_MAX_OVERFLOW,
+    }
+
+
 # Create async engine
 engine = create_async_engine(
     get_async_database_url(),
-    echo=settings.DEBUG,
-    pool_size=settings.DATABASE_POOL_SIZE,
-    max_overflow=settings.DATABASE_MAX_OVERFLOW,
-    pool_pre_ping=True,
+    **get_engine_kwargs()
 )
 
 # Create async session factory
