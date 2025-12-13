@@ -162,7 +162,12 @@ gewerbespeicher-app/
 
 ---
 
-## 📚 API Dokumentation
+## 📚 Dokumentation
+
+- [Architektur](docs/ARCHITEKTUR.md) - Systemarchitektur und Tech-Stack Details
+- [Implementierung](docs/IMPLEMENTIERUNG.md) - Setup-Anleitung und Fahrplan
+
+### API Dokumentation
 
 Nach dem Start verfügbar unter: http://localhost:8000/docs
 
