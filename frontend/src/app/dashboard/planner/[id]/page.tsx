@@ -398,6 +398,9 @@ export default function PlannerPage() {
                   pvPeakKw={project?.pv_peak_power_kw || 0}
                   batteryCapacityKwh={project?.battery_capacity_kwh || 0}
                   electricityPrice={project?.electricity_price_eur_kwh || 0.30}
+                  totalSavings={simulation.results?.total_savings_eur}
+                  npvEur={simulation.results?.npv_eur}
+                  irrPercent={simulation.results?.irr_percent}
                 />
               )}
             </div>

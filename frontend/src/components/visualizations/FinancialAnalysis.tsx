@@ -24,6 +24,10 @@ interface FinancialAnalysisProps {
   pvPeakKw: number;              // kWp
   batteryCapacityKwh: number;    // kWh
   electricityPrice: number;      // EUR/kWh
+  // New KPIs from pvlib simulation (optional)
+  totalSavings?: number;         // Total savings over lifetime
+  npvEur?: number;               // Net Present Value from backend
+  irrPercent?: number;           // Internal Rate of Return from backend
 }
 
 export function FinancialAnalysis({
@@ -33,6 +37,9 @@ export function FinancialAnalysis({
   pvPeakKw,
   batteryCapacityKwh,
   electricityPrice,
+  totalSavings,
+  npvEur,
+  irrPercent,
 }: FinancialAnalysisProps) {
   // Calculate investment if not provided
   const totalInvestment = useMemo(() => {
@@ -86,12 +93,24 @@ export function FinancialAnalysis({
     });
   }, [annualSavings, totalInvestment]);
 
-  // Calculate key financial metrics
+  // Calculate key financial metrics (use backend values when available)
   const financialMetrics = useMemo(() => {
     const finalData = cashflowData[cashflowData.length - 1];
-    const totalReturn = finalData.cumulativeSavings;
+
+    // Prefer backend values when available
+    const totalReturn = totalSavings !== undefined
+      ? totalSavings - totalInvestment
+      : finalData.cumulativeSavings;
+
     const roi = ((totalReturn + totalInvestment) / totalInvestment) * 100;
-    const irr = ((Math.pow(1 + totalReturn / totalInvestment, 1 / 25) - 1) * 100);
+
+    // Use backend IRR if available, otherwise calculate locally
+    const irr = irrPercent !== undefined
+      ? irrPercent
+      : ((Math.pow(1 + totalReturn / totalInvestment, 1 / 25) - 1) * 100);
+
+    // Use backend NPV if available
+    const npv25 = npvEur !== undefined ? npvEur : finalData.cumulativeNPV;
 
     // Find breakeven year
     const breakevenYear = cashflowData.findIndex((d) => d.cumulativeSavings >= 0);
@@ -100,10 +119,11 @@ export function FinancialAnalysis({
       totalReturn: Math.round(totalReturn),
       roi: Math.round(roi),
       irr: Math.round(irr * 10) / 10,
-      npv25: finalData.cumulativeNPV,
+      npv25: Math.round(npv25),
       breakevenYear: breakevenYear > 0 ? breakevenYear : paybackYears,
+      hasBackendKPIs: npvEur !== undefined || irrPercent !== undefined,
     };
-  }, [cashflowData, totalInvestment, paybackYears]);
+  }, [cashflowData, totalInvestment, paybackYears, totalSavings, npvEur, irrPercent]);
 
   // Monthly savings breakdown (first year)
   const monthlySavingsData = useMemo(() => {
@@ -292,6 +312,11 @@ export function FinancialAnalysis({
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <ArrowUpRight className="w-5 h-5" />
           25-Jahres-Prognose
+          {financialMetrics.hasBackendKPIs && (
+            <span className="ml-2 px-2 py-0.5 bg-white/20 rounded text-xs font-normal">
+              pvlib-Simulation
+            </span>
+          )}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div>

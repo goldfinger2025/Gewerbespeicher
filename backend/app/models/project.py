@@ -52,6 +52,7 @@ class Project(Base):
     # Consumption
     annual_consumption_kwh = Column(Float)
     peak_load_kw = Column(Float)
+    load_profile_type = Column(String(50), default="office")  # office, retail, production, warehouse
 
     # Cost Parameters
     electricity_price_eur_kwh = Column(Float)
