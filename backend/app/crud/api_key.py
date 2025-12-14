@@ -176,7 +176,7 @@ async def get_active_key_count(db: AsyncSession, tenant_id: UUID) -> int:
     result = await db.execute(
         select(func.count(APIKey.id))
         .where(APIKey.tenant_id == tenant_id)
-        .where(APIKey.is_active == True)
+        .where(APIKey.is_active.is_(True))
         .where(APIKey.revoked_at.is_(None))
     )
     return result.scalar() or 0

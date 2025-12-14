@@ -46,7 +46,7 @@ async def get_all_tenants(
     """Get all tenants with pagination"""
     query = select(Tenant)
     if not include_inactive:
-        query = query.where(Tenant.is_active == True)
+        query = query.where(Tenant.is_active.is_(True))
     query = query.offset(skip).limit(limit).order_by(Tenant.name)
     result = await db.execute(query)
     return list(result.scalars().all())

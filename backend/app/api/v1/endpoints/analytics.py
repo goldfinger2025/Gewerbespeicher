@@ -7,7 +7,7 @@ Phase 4: Advanced Analytics für Enterprise
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, case, and_
+from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta
@@ -15,7 +15,7 @@ import csv
 import io
 
 from app.database import get_db
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.tenant import Tenant
 from app.models.project import Project
 from app.models.simulation import Simulation
@@ -459,8 +459,8 @@ async def get_tenant_analytics(
     # Projects by status
     status_counts = {}
     for p in all_projects:
-        status = p.status or "draft"
-        status_counts[status] = status_counts.get(status, 0) + 1
+        proj_status = p.status or "draft"
+        status_counts[proj_status] = status_counts.get(proj_status, 0) + 1
 
     # Get simulations and calculate savings
     sims_result = await db.execute(
