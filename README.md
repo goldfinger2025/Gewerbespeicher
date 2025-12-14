@@ -185,9 +185,9 @@ Nach dem Start verfügbar unter: http://localhost:8000/docs
 ## 🗓️ Roadmap
 
 - [x] Phase 1: MVP Foundation (Wochen 1-4)
-- [ ] Phase 2: KI & Intelligenz (Wochen 5-8)
-- [ ] Phase 3: Realwelt-Integration (Wochen 9-12)
-- [ ] Phase 4: Enterprise Features (Wochen 13-16)
+- [x] Phase 2: KI & Intelligenz (Wochen 5-8)
+- [x] Phase 3: Realwelt-Integration (Wochen 9-12)
+- [x] Phase 4: Enterprise Features (Wochen 13-16)
 
 ---
 

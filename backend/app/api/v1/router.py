@@ -4,7 +4,19 @@ Combines all endpoint routers
 """
 
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, projects, simulations, offers, health, components, optimize, analytics, integrations
+from app.api.v1.endpoints import (
+    auth,
+    projects,
+    simulations,
+    offers,
+    health,
+    components,
+    optimize,
+    analytics,
+    integrations,
+    tenants,
+    api_keys,
+)
 
 router = APIRouter()
 
@@ -18,6 +30,18 @@ router.include_router(
     auth.router,
     prefix="/auth",
     tags=["Authentication"]
+)
+
+router.include_router(
+    tenants.router,
+    prefix="/tenants",
+    tags=["Tenants"]
+)
+
+router.include_router(
+    api_keys.router,
+    prefix="/api-keys",
+    tags=["API Keys"]
 )
 
 router.include_router(
