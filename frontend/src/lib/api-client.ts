@@ -126,6 +126,11 @@ const api = {
   },
 
   // ============ OFFERS ============
+  getOffers: async (params?: { skip?: number; limit?: number; status?: string }) => {
+    const response = await client.get("/offers", { params });
+    return response.data;
+  },
+
   createOffer: async (simulationId: string, options?: { generate_pdf?: boolean }) => {
     const response = await client.post("/offers", {
       simulation_id: simulationId,
@@ -136,6 +141,13 @@ const api = {
 
   getOffer: async (id: string) => {
     const response = await client.get(`/offers/${id}`);
+    return response.data;
+  },
+
+  getOfferPdf: async (id: string) => {
+    const response = await client.get(`/offers/${id}/pdf`, {
+      responseType: 'blob',
+    });
     return response.data;
   },
 

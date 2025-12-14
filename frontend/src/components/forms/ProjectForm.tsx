@@ -6,6 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 
+// Load Profile Types for Commercial Buildings
+const LOAD_PROFILE_TYPES = [
+  { value: "office", label: "Bürogebäude", description: "Mo-Fr 8-18 Uhr Hauptlast" },
+  { value: "retail", label: "Einzelhandel", description: "Mo-Sa 10-20 Uhr Hauptlast" },
+  { value: "production", label: "Produktion", description: "Schichtbetrieb, konstante Last" },
+  { value: "warehouse", label: "Lager/Logistik", description: "Frühe Morgenstunden Hauptlast" },
+] as const;
+
 // Validation Schema
 const projectFormSchema = z.object({
   customer_name: z.string().min(2, "Name muss mindestens 2 Zeichen haben"),
@@ -14,6 +22,7 @@ const projectFormSchema = z.object({
   postal_code: z.string().regex(/^\d{5}$/, "Ungültige PLZ (5 Ziffern)"),
   city: z.string().optional(),
   project_name: z.string().optional(),
+  load_profile_type: z.enum(["office", "retail", "production", "warehouse"]).default("office"),
   pv_peak_power_kw: z.coerce
     .number()
     .min(1, "Min. 1 kWp")
@@ -59,6 +68,7 @@ export function ProjectForm({ onSubmit, initialData, isEditing = false }: Projec
       postal_code: "",
       city: "",
       project_name: "",
+      load_profile_type: "office",
       pv_peak_power_kw: 50,
       battery_capacity_kwh: 100,
       battery_power_kw: 50,
@@ -145,6 +155,24 @@ export function ProjectForm({ onSubmit, initialData, isEditing = false }: Projec
 
       {/* Divider */}
       <hr className="my-4 border-slate-200" />
+
+      {/* Lastprofil-Typ */}
+      <div>
+        <label className="label">Gebäudetyp / Lastprofil *</label>
+        <select
+          {...register("load_profile_type")}
+          className="input-field"
+        >
+          {LOAD_PROFILE_TYPES.map((profile) => (
+            <option key={profile.value} value={profile.value}>
+              {profile.label} – {profile.description}
+            </option>
+          ))}
+        </select>
+        <p className="text-slate-500 text-xs mt-1">
+          Das Lastprofil beeinflusst die Simulation des Eigenverbrauchs
+        </p>
+      </div>
 
       {/* PV-Leistung */}
       <div>

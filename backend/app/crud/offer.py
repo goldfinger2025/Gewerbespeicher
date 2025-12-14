@@ -156,6 +156,19 @@ async def mark_offer_signed(
     return offer
 
 
+async def update_offer_pdf(
+    db: AsyncSession,
+    offer: Offer,
+    pdf_path: str
+) -> Offer:
+    """Update offer with PDF path"""
+    offer.pdf_path = pdf_path
+    offer.pdf_generated_at = datetime.utcnow()
+    await db.flush()
+    await db.refresh(offer)
+    return offer
+
+
 async def delete_offer(db: AsyncSession, offer: Offer) -> None:
     """Delete an offer"""
     await db.delete(offer)

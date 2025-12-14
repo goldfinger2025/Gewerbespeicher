@@ -10,11 +10,32 @@ import {
   Send,
   Eye,
   ArrowRight,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
+import api from "@/lib/api-client";
+
+interface Offer {
+  id: string;
+  offer_number: string;
+  status: string;
+  created_at: string;
+  valid_until: string;
+  is_signed: boolean;
+  project_id: string;
+}
 
 export default function OffersPage() {
-  // For now, show empty state - offers are created from simulations
-  const offers: any[] = [];
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["offers"],
+    queryFn: async () => {
+      const response = await api.getOffers();
+      return response;
+    },
+  });
+
+  const offers: Offer[] = data?.items || [];
+  const total = data?.total || 0;
 
   const statusColors: Record<string, string> = {
     draft: "bg-slate-100 text-slate-700",
@@ -43,6 +64,11 @@ export default function OffersPage() {
     rejected: FileText,
   };
 
+  // Calculate stats
+  const draftCount = offers.filter((o) => o.status === "draft").length;
+  const sentCount = offers.filter((o) => o.status === "sent" || o.status === "viewed").length;
+  const completedCount = offers.filter((o) => o.status === "completed" || o.status === "signed").length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -53,48 +79,76 @@ export default function OffersPage() {
             Verwalten Sie Ihre Angebote und verfolgen Sie den Status
           </p>
         </div>
-        <Link href="/dashboard/planner" className="btn-primary flex items-center gap-2">
-          <Plus className="w-5 h-5" />
-          Neues Projekt
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => refetch()}
+            className="btn-secondary flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Aktualisieren
+          </button>
+          <Link href="/dashboard/planner" className="btn-primary flex items-center gap-2">
+            <Plus className="w-5 h-5" />
+            Neues Projekt
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card">
           <p className="text-sm text-slate-500">Gesamt</p>
-          <p className="text-2xl font-bold">{offers.length}</p>
+          <p className="text-2xl font-bold">{total}</p>
         </div>
         <div className="card">
           <p className="text-sm text-slate-500">Entwürfe</p>
-          <p className="text-2xl font-bold">
-            {offers.filter((o) => o.status === "draft").length}
-          </p>
+          <p className="text-2xl font-bold">{draftCount}</p>
         </div>
         <div className="card">
           <p className="text-sm text-slate-500">Gesendet</p>
-          <p className="text-2xl font-bold">
-            {offers.filter((o) => o.status === "sent").length}
-          </p>
+          <p className="text-2xl font-bold">{sentCount}</p>
         </div>
         <div className="card">
           <p className="text-sm text-slate-500">Abgeschlossen</p>
-          <p className="text-2xl font-bold">
-            {offers.filter((o) => o.status === "completed" || o.status === "signed").length}
-          </p>
+          <p className="text-2xl font-bold">{completedCount}</p>
         </div>
       </div>
 
       {/* Offers List */}
       <div className="card">
-        {offers.length > 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            <span className="ml-3 text-slate-500">Lade Angebote...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <FileText className="w-16 h-16 text-red-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-slate-900 mb-2">
+              Fehler beim Laden
+            </h3>
+            <p className="text-slate-500 mb-6">
+              Die Angebote konnten nicht geladen werden.
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Erneut versuchen
+            </button>
+          </div>
+        ) : offers.length > 0 ? (
           <div className="divide-y divide-slate-200">
-            {offers.map((offer: any) => {
+            {offers.map((offer: Offer) => {
               const StatusIcon = statusIcons[offer.status] || FileText;
+              const isExpired = offer.valid_until && new Date(offer.valid_until) < new Date();
+
               return (
                 <div
                   key={offer.id}
-                  className="flex items-center justify-between py-4 first:pt-0 last:pb-0"
+                  className="flex items-center justify-between py-4 first:pt-0 last:pb-0 hover:bg-slate-50 -mx-6 px-6 transition"
                 >
                   <div className="flex items-center gap-4">
                     <div
@@ -102,7 +156,9 @@ export default function OffersPage() {
                         statusColors[offer.status]?.split(" ")[0] || "bg-slate-100"
                       }`}
                     >
-                      <StatusIcon className="w-5 h-5" />
+                      <StatusIcon className={`w-5 h-5 ${
+                        statusColors[offer.status]?.split(" ")[1] || "text-slate-700"
+                      }`} />
                     </div>
                     <div>
                       <h3 className="font-semibold text-slate-900">
@@ -111,6 +167,12 @@ export default function OffersPage() {
                       <p className="text-sm text-slate-500">
                         Erstellt am{" "}
                         {new Date(offer.created_at).toLocaleDateString("de-DE")}
+                        {offer.valid_until && (
+                          <span className={isExpired ? "text-red-500 ml-2" : "ml-2"}>
+                            • Gültig bis {new Date(offer.valid_until).toLocaleDateString("de-DE")}
+                            {isExpired && " (Abgelaufen)"}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -124,7 +186,7 @@ export default function OffersPage() {
                     </span>
                     <Link
                       href={`/dashboard/offers/${offer.id}`}
-                      className="text-blue-600 hover:text-blue-700"
+                      className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition"
                     >
                       <ArrowRight className="w-5 h-5" />
                     </Link>
@@ -140,7 +202,7 @@ export default function OffersPage() {
               Noch keine Angebote
             </h3>
             <p className="text-slate-500 mb-6 max-w-md mx-auto">
-              Erstellen Sie ein Projekt, führen Sie eine Simulation durch und 
+              Erstellen Sie ein Projekt, führen Sie eine Simulation durch und
               generieren Sie dann ein Angebot.
             </p>
             <Link href="/dashboard/planner" className="btn-primary inline-flex items-center gap-2">

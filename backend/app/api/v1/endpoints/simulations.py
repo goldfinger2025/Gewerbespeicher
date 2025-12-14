@@ -1,8 +1,9 @@
 """
 Simulation Endpoints
-PV + Storage System Simulation
+PV + Storage System Simulation with pvlib
 """
 
+import logging
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,9 @@ from app.models.simulation import Simulation
 from app.crud import project as project_crud
 from app.crud import simulation as simulation_crud
 from app.api.deps import get_current_user
-from app.core.simulator import PVStorageSimulator
+from app.core.pvlib_simulator import get_simulator
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
@@ -27,6 +30,7 @@ router = APIRouter()
 class SimulationRequest(BaseModel):
     project_id: str
     simulation_type: Optional[str] = "standard"  # standard, peak-shaving, arbitrage
+    load_profile_type: Optional[str] = "office"  # office, retail, production, warehouse
 
 
 class SimulationKPIs(BaseModel):
@@ -36,8 +40,12 @@ class SimulationKPIs(BaseModel):
     grid_export_kwh: float
     autonomy_degree_percent: float
     self_consumption_ratio_percent: float
+    pv_coverage_percent: Optional[float] = None
     annual_savings_eur: float
+    total_savings_eur: Optional[float] = None
     payback_period_years: float
+    npv_eur: Optional[float] = None
+    irr_percent: Optional[float] = None
     battery_cycles: float
 
 
@@ -48,6 +56,7 @@ class MonthlyData(BaseModel):
     self_consumption_kwh: float
     grid_import_kwh: float
     grid_export_kwh: float
+    autonomy_percent: Optional[float] = None
 
 
 class SimulationResponse(BaseModel):
@@ -76,8 +85,12 @@ def simulation_to_response(simulation: Simulation) -> SimulationResponse:
             grid_export_kwh=simulation.fed_to_grid_kwh or 0,
             autonomy_degree_percent=simulation.autonomy_degree_percent or 0,
             self_consumption_ratio_percent=simulation.self_consumption_ratio_percent or 0,
+            pv_coverage_percent=getattr(simulation, 'pv_coverage_percent', None),
             annual_savings_eur=simulation.annual_savings_eur or 0,
+            total_savings_eur=getattr(simulation, 'total_savings_eur', None),
             payback_period_years=simulation.payback_period_years or 0,
+            npv_eur=getattr(simulation, 'npv_eur', None),
+            irr_percent=getattr(simulation, 'irr_percent', None),
             battery_cycles=simulation.battery_discharge_cycles or 0,
         )
 
@@ -136,13 +149,15 @@ async def run_simulation(
         simulation_type=request.simulation_type,
     )
 
-    # Initialize simulator
-    simulator = PVStorageSimulator(
+    # Initialize pvlib simulator
+    simulator = get_simulator(
         latitude=project.latitude or 54.5,
         longitude=project.longitude or 9.3
     )
 
-    # Run simulation
+    logger.info(f"Running pvlib simulation for project {project.id}")
+
+    # Run simulation with pvlib
     try:
         results = await simulator.simulate_year(
             pv_peak_kw=project.pv_peak_power_kw,
@@ -151,18 +166,18 @@ async def run_simulation(
             annual_consumption_kwh=project.annual_consumption_kwh,
             electricity_price=project.electricity_price_eur_kwh or 0.30,
             feed_in_tariff=project.feed_in_tariff_eur_kwh or 0.08,
-            pv_tilt=project.pv_tilt_angle or 30.0
+            pv_tilt=project.pv_tilt_angle or 30.0,
+            pv_azimuth=180.0,  # Default: South
+            load_profile_type=request.load_profile_type or "office"
         )
 
-        # Calculate self-consumption ratio
-        self_consumption_ratio = 0
-        if results["pv_generation_kwh"] > 0:
-            self_consumption_ratio = (results["self_consumption_kwh"] / results["pv_generation_kwh"]) * 100
+        # Get self-consumption ratio from results
+        self_consumption_ratio = results.get("self_consumption_ratio_percent", 0)
 
         # Generate monthly summary from results
         monthly_summary = results.get("monthly_summary", [])
 
-        # Update simulation with results
+        # Update simulation with results (including new pvlib KPIs)
         simulation = await simulation_crud.complete_simulation(
             db=db,
             simulation=simulation,
@@ -172,11 +187,17 @@ async def run_simulation(
             fed_to_grid_kwh=results["grid_export_kwh"],
             autonomy_degree_percent=results["autonomy_degree_percent"],
             self_consumption_ratio_percent=self_consumption_ratio,
+            pv_coverage_percent=results.get("pv_coverage_percent", 0),
             annual_savings_eur=results["annual_savings_eur"],
+            total_savings_eur=results.get("total_savings_eur", 0),
             payback_period_years=results["payback_period_years"],
+            npv_eur=results.get("npv_eur", 0),
+            irr_percent=results.get("irr_percent", 0),
             battery_discharge_cycles=results["battery_cycles"],
             monthly_summary=monthly_summary if monthly_summary else None,
         )
+
+        logger.info(f"Simulation completed: {results['autonomy_degree_percent']:.1f}% autonomy")
 
         return simulation_to_response(simulation)
 

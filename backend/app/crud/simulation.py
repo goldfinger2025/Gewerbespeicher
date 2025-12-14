@@ -104,6 +104,11 @@ async def complete_simulation(
     battery_discharge_cycles: float,
     monthly_summary: Optional[dict] = None,
     hourly_data: Optional[dict] = None,
+    # New pvlib KPIs
+    pv_coverage_percent: Optional[float] = None,
+    total_savings_eur: Optional[float] = None,
+    npv_eur: Optional[float] = None,
+    irr_percent: Optional[float] = None,
 ) -> Simulation:
     """Update simulation with results and mark as completed"""
     simulation.status = "completed"
@@ -118,6 +123,16 @@ async def complete_simulation(
     simulation.battery_discharge_cycles = battery_discharge_cycles
     simulation.monthly_summary = monthly_summary
     simulation.hourly_data = hourly_data
+
+    # Set new KPIs if provided
+    if pv_coverage_percent is not None:
+        simulation.pv_coverage_percent = pv_coverage_percent
+    if total_savings_eur is not None:
+        simulation.total_savings_eur = total_savings_eur
+    if npv_eur is not None:
+        simulation.npv_eur = npv_eur
+    if irr_percent is not None:
+        simulation.irr_percent = irr_percent
 
     await db.flush()
     await db.refresh(simulation)

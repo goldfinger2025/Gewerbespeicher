@@ -42,6 +42,7 @@ class ProjectCreate(BaseModel):
     battery_manufacturer: Optional[str] = None
     annual_consumption_kwh: float
     peak_load_kw: Optional[float] = None
+    load_profile_type: Optional[str] = "office"  # office, retail, production, warehouse
     electricity_price_eur_kwh: Optional[float] = 0.30
     grid_fee_eur_kwh: Optional[float] = None
     feed_in_tariff_eur_kwh: Optional[float] = 0.08
@@ -67,6 +68,7 @@ class ProjectUpdate(BaseModel):
     battery_manufacturer: Optional[str] = None
     annual_consumption_kwh: Optional[float] = None
     peak_load_kw: Optional[float] = None
+    load_profile_type: Optional[str] = None
     electricity_price_eur_kwh: Optional[float] = None
     grid_fee_eur_kwh: Optional[float] = None
     feed_in_tariff_eur_kwh: Optional[float] = None
@@ -98,6 +100,7 @@ class ProjectResponse(BaseModel):
     battery_manufacturer: Optional[str] = None
     annual_consumption_kwh: Optional[float] = None
     peak_load_kw: Optional[float] = None
+    load_profile_type: Optional[str] = "office"
     electricity_price_eur_kwh: Optional[float] = None
     grid_fee_eur_kwh: Optional[float] = None
     feed_in_tariff_eur_kwh: Optional[float] = None
@@ -142,6 +145,7 @@ def project_to_response(project: Project) -> ProjectResponse:
         battery_manufacturer=project.battery_manufacturer,
         annual_consumption_kwh=project.annual_consumption_kwh,
         peak_load_kw=project.peak_load_kw,
+        load_profile_type=project.load_profile_type or "office",
         electricity_price_eur_kwh=project.electricity_price_eur_kwh,
         grid_fee_eur_kwh=project.grid_fee_eur_kwh,
         feed_in_tariff_eur_kwh=project.feed_in_tariff_eur_kwh,
@@ -188,6 +192,7 @@ async def create_project(
         battery_chemistry=project_data.battery_chemistry,
         battery_manufacturer=project_data.battery_manufacturer,
         peak_load_kw=project_data.peak_load_kw,
+        load_profile_type=project_data.load_profile_type,
         electricity_price_eur_kwh=project_data.electricity_price_eur_kwh,
         grid_fee_eur_kwh=project_data.grid_fee_eur_kwh,
         feed_in_tariff_eur_kwh=project_data.feed_in_tariff_eur_kwh,
