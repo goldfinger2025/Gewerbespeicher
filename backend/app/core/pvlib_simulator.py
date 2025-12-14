@@ -8,12 +8,20 @@ import pandas as pd
 from typing import Dict, Optional, Tuple
 import logging
 import aiohttp
+import hashlib
+import json
 
 # pvlib imports
 from pvlib import pvsystem, modelchain, location
 from pvlib.temperature import TEMPERATURE_MODEL_PARAMETERS
 
+from app.cache import RedisCache
+
 logger = logging.getLogger(__name__)
+
+
+# Cache expiration time for PVGIS data (30 days in seconds)
+PVGIS_CACHE_EXPIRATION = 30 * 24 * 60 * 60  # 30 days
 
 
 class PVLibSimulator:
@@ -80,9 +88,18 @@ class PVLibSimulator:
         # Cache for weather data
         self._weather_cache: Optional[pd.DataFrame] = None
 
+    def _get_pvgis_cache_key(self) -> str:
+        """Generate cache key for PVGIS data based on location"""
+        # Round coordinates to 2 decimal places for cache efficiency
+        # (covers ~1km precision which is sufficient for TMY data)
+        lat_rounded = round(self.latitude, 2)
+        lon_rounded = round(self.longitude, 2)
+        key_string = f"pvgis:tmy:{lat_rounded}:{lon_rounded}"
+        return key_string
+
     async def get_pvgis_tmy_data(self) -> pd.DataFrame:
         """
-        Fetch TMY (Typical Meteorological Year) data from PVGIS
+        Fetch TMY (Typical Meteorological Year) data from PVGIS with Redis caching
 
         Returns hourly data for a typical year including:
         - GHI (Global Horizontal Irradiance)
@@ -90,10 +107,35 @@ class PVLibSimulator:
         - DHI (Diffuse Horizontal Irradiance)
         - Temperature
         - Wind speed
+
+        Data is cached in Redis for 30 days to reduce API calls.
         """
+        # Check in-memory cache first
         if self._weather_cache is not None:
             return self._weather_cache
 
+        cache_key = self._get_pvgis_cache_key()
+
+        # Try to get from Redis cache
+        try:
+            cached_data = await RedisCache.get_json(cache_key)
+            if cached_data is not None:
+                logger.info(f"PVGIS data loaded from Redis cache: {cache_key}")
+                df = pd.DataFrame(cached_data)
+                # Recreate datetime index
+                dates = pd.date_range(
+                    start='2024-01-01',
+                    periods=len(df),
+                    freq='h',
+                    tz='Europe/Berlin'
+                )
+                df.index = dates
+                self._weather_cache = df
+                return df
+        except Exception as e:
+            logger.warning(f"Redis cache read failed: {e}")
+
+        # Fetch from PVGIS API
         url = "https://re.jrc.ec.europa.eu/api/v5_2/tmy"
         params = {
             "lat": self.latitude,
@@ -137,8 +179,20 @@ class PVLibSimulator:
                             available_cols = [c for c in ['ghi', 'dni', 'dhi', 'temp_air', 'wind_speed'] if c in df.columns]
                             df = df[available_cols]
 
+                            # Store in Redis cache (without index for JSON serialization)
+                            try:
+                                cache_data = df.reset_index(drop=True).to_dict(orient='list')
+                                await RedisCache.set(
+                                    cache_key,
+                                    cache_data,
+                                    expire=PVGIS_CACHE_EXPIRATION
+                                )
+                                logger.info(f"PVGIS data cached in Redis: {cache_key}")
+                            except Exception as e:
+                                logger.warning(f"Failed to cache PVGIS data: {e}")
+
                             self._weather_cache = df
-                            logger.info(f"PVGIS TMY data loaded: {len(df)} hours")
+                            logger.info(f"PVGIS TMY data loaded from API: {len(df)} hours")
                             return df
 
                     logger.warning(f"PVGIS request failed: {response.status}")
