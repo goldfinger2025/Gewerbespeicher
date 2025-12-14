@@ -42,13 +42,35 @@ class Settings(BaseSettings):
         "https://gewerbespeicher.vercel.app",
     ]
 
+    # Production domains that should ALWAYS be allowed (merged with ALLOWED_ORIGINS)
+    _REQUIRED_ORIGINS: List[str] = [
+        "https://gewerbespeicher.vercel.app",
+        "https://gewerbespeicher.app",
+        "https://www.gewerbespeicher.app",
+        "https://gewerbespeicher-production.up.railway.app",
+    ]
+
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
-        """Parse CORS origins from comma-separated string or list"""
+        """Parse CORS origins from comma-separated string or list and merge with required origins"""
+        # Parse input
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
+        else:
+            origins = v if v else []
+
+        # Always include required production origins
+        required = [
+            "https://gewerbespeicher.vercel.app",
+            "https://gewerbespeicher.app",
+            "https://www.gewerbespeicher.app",
+            "https://gewerbespeicher-production.up.railway.app",
+        ]
+
+        # Merge and deduplicate
+        all_origins = list(set(origins + required))
+        return all_origins
 
     # External Services - Phase 3 Integrations
     HUBSPOT_API_KEY: str = ""
