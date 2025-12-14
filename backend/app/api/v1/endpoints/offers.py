@@ -446,20 +446,7 @@ async def send_offer(
     # Mark as sent
     await offer_crud.mark_offer_sent(db=db, offer=offer)
 
-    # Load PDF if exists
-    pdf_bytes = None
-    if offer.pdf_path:
-        try:
-            pdf_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "pdfs")
-            pdf_dir = os.path.abspath(pdf_dir)
-            pdf_full_path = os.path.join(pdf_dir, offer.pdf_path)
-            if os.path.exists(pdf_full_path):
-                with open(pdf_full_path, 'rb') as f:
-                    pdf_bytes = f.read()
-        except Exception as e:
-            logger.warning(f"Could not load PDF for email: {e}")
-
-    # Send email
+    # Send email (PDF attachment can be added later)
     email_result = await email_service.send_offer_email_simulated(
         to_email=request.customer_email,
         customer_name=project.customer_name,

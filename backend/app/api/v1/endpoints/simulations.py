@@ -17,7 +17,7 @@ from app.models.simulation import Simulation
 from app.crud import project as project_crud
 from app.crud import simulation as simulation_crud
 from app.api.deps import get_current_user
-from app.core.pvlib_simulator import PVLibSimulator, get_simulator
+from app.core.pvlib_simulator import get_simulator
 
 logger = logging.getLogger(__name__)
 
