@@ -204,16 +204,28 @@ export default function OfferDetailPage() {
                 Link kopieren
               </button>
 
-              {offer.pdf_path && (
-                <a
-                  href={offer.pdf_path}
-                  download
-                  className="w-full btn-secondary flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  PDF herunterladen
-                </a>
-              )}
+              <button
+                onClick={async () => {
+                  try {
+                    const blob = await api.getOfferPdf(offerId);
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Angebot_${offer.offer_number}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                  } catch (error) {
+                    console.error('PDF download failed:', error);
+                    alert('PDF konnte nicht heruntergeladen werden');
+                  }
+                }}
+                className="w-full btn-secondary flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                PDF herunterladen
+              </button>
             </div>
           </div>
 
