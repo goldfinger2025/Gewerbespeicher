@@ -3,7 +3,7 @@ API Key Model
 SQLAlchemy ORM model for third-party API access
 """
 
-from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Float
+from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Float, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
