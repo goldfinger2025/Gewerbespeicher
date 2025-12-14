@@ -61,13 +61,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS Middleware
+# CORS Middleware - Must be added BEFORE routes to handle preflight requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600,  # Cache preflight response for 10 minutes
 )
 
 # Include API Routes
