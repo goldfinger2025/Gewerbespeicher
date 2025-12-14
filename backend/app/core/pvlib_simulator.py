@@ -8,8 +8,6 @@ import pandas as pd
 from typing import Dict, Optional, Tuple
 import logging
 import aiohttp
-import hashlib
-import json
 
 # pvlib imports
 from pvlib import pvsystem, modelchain, location

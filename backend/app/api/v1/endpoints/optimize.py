@@ -11,7 +11,7 @@ Phase 2 Features:
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from uuid import UUID
 
 from app.database import get_db

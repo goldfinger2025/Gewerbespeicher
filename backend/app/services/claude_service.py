@@ -10,7 +10,7 @@ Phase 2 Features:
 """
 
 from anthropic import Anthropic
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 import json
 import logging
 import re
@@ -929,7 +929,7 @@ Ihr EWS Team
             "reasoning": f"Dimensionierung optimiert für {profile_info['name']}-Lastprofil mit {profile_info['pv_match_quality']}er PV-Eignung. "
                         f"Speicher für {battery_hours}h Peak-Abdeckung ausgelegt.",
             "recommendations": [
-                f"PV-Ausrichtung Süd optimieren für maximalen Ertrag",
+                "PV-Ausrichtung Süd optimieren für maximalen Ertrag",
                 f"Speicher kann Last während {profile_info['peak_hours']} abfedern",
                 "Lastmanagement für weitere Optimierung prüfen"
             ]
@@ -939,7 +939,6 @@ Ihr EWS Team
         """Fallback Vergleichsszenarien"""
         pv = project.get('pv_peak_power_kw', 50)
         battery = project.get('battery_capacity_kwh', 100)
-        consumption = project.get('annual_consumption_kwh', 50000)
         autonomy = simulation.get('autonomy_degree_percent', 50)
         savings = simulation.get('annual_savings_eur', 5000)
         payback = simulation.get('payback_period_years', 8)
