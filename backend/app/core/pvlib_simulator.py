@@ -13,7 +13,7 @@ import asyncio
 
 # pvlib imports
 import pvlib
-from pvlib import pvsystem, modelchain, location, irradiance
+from pvlib import pvsystem, modelchain, location
 from pvlib.temperature import TEMPERATURE_MODEL_PARAMETERS
 
 logger = logging.getLogger(__name__)
