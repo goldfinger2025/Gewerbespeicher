@@ -3,11 +3,10 @@ Integration Endpoints
 Phase 3: Real-world integrations - DocuSign, HubSpot, Google Maps, PVGIS
 """
 
-import os
 import base64
 import logging
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response, status
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +16,6 @@ import io
 
 from app.database import get_db
 from app.models.user import User
-from app.models.offer import Offer
 from app.crud import project as project_crud
 from app.crud import offer as offer_crud
 from app.crud import simulation as simulation_crud

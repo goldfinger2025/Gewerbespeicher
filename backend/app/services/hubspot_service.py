@@ -5,9 +5,8 @@ Synchronizes contacts, companies, and deals with HubSpot CRM
 
 import os
 import logging
-from datetime import datetime
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, field
+from typing import Optional, Dict, Any
+from dataclasses import dataclass
 import aiohttp
 
 from app.config import settings

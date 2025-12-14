@@ -12,6 +12,7 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
+  Calculator,
 } from "lucide-react";
 import api from "@/lib/api-client";
 
@@ -245,6 +246,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-// Add missing import
-import { Calculator } from "lucide-react";

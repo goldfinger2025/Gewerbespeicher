@@ -4,12 +4,11 @@ Direct integration with EU JRC PVGIS API for solar radiation and PV estimation
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import aiohttp
 import pandas as pd
-import numpy as np
 
 from app.cache import RedisCache
 
