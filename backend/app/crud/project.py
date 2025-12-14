@@ -107,6 +107,20 @@ async def delete_project(db: AsyncSession, project: Project) -> None:
     await db.flush()
 
 
+async def update_project_coordinates(
+    db: AsyncSession,
+    project: Project,
+    latitude: float,
+    longitude: float
+) -> Project:
+    """Update project with geocoded coordinates"""
+    project.latitude = latitude
+    project.longitude = longitude
+    await db.flush()
+    await db.refresh(project)
+    return project
+
+
 async def get_project_with_simulations(
     db: AsyncSession,
     project_id: UUID,

@@ -144,13 +144,46 @@ async def mark_offer_sent(
 async def mark_offer_signed(
     db: AsyncSession,
     offer: Offer,
-    signer_name: str
+    signer_name: str,
+    signed_at: Optional[datetime] = None
 ) -> Offer:
     """Mark offer as signed"""
     offer.status = "signed"
     offer.is_signed = True
-    offer.signed_at = datetime.utcnow()
+    offer.signed_at = signed_at or datetime.utcnow()
     offer.signer_name = signer_name
+    await db.flush()
+    await db.refresh(offer)
+    return offer
+
+
+async def update_offer_signature(
+    db: AsyncSession,
+    offer: Offer,
+    signature_link: str,
+    envelope_id: Optional[str] = None
+) -> Offer:
+    """Update offer with DocuSign signature link"""
+    offer.signature_link = signature_link
+    if envelope_id:
+        # Store envelope_id in technical_specs JSON
+        if offer.technical_specs is None:
+            offer.technical_specs = {}
+        offer.technical_specs["docusign_envelope_id"] = envelope_id
+    offer.status = "sent"
+    await db.flush()
+    await db.refresh(offer)
+    return offer
+
+
+async def update_offer_crm(
+    db: AsyncSession,
+    offer: Offer,
+    hubspot_deal_id: str
+) -> Offer:
+    """Update offer with HubSpot deal ID"""
+    offer.hubspot_deal_id = hubspot_deal_id
+    offer.crm_sync_status = "synced"
     await db.flush()
     await db.refresh(offer)
     return offer
