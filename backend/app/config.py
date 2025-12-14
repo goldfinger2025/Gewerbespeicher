@@ -50,9 +50,19 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
-    # External Services
+    # External Services - Phase 3 Integrations
     HUBSPOT_API_KEY: str = ""
+    HUBSPOT_PORTAL_ID: str = ""
+
     DOCUSIGN_API_KEY: str = ""
+    DOCUSIGN_ACCOUNT_ID: str = ""
+    DOCUSIGN_USER_ID: str = ""
+    DOCUSIGN_PRIVATE_KEY: str = ""
+    DOCUSIGN_WEBHOOK_SECRET: str = ""
+    DOCUSIGN_PRODUCTION: bool = False
+
+    # Frontend URL for callbacks
+    FRONTEND_URL: str = "http://localhost:3000"
 
     # PV Simulation Defaults
     DEFAULT_ELECTRICITY_PRICE: float = 0.30  # EUR/kWh

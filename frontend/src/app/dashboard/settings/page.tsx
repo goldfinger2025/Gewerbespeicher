@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Building,
@@ -14,12 +14,70 @@ import {
   Loader2,
   CheckCircle,
   ExternalLink,
+  RefreshCw,
+  AlertCircle,
+  Globe,
+  FileSignature,
+  MapPin,
+  Sun,
 } from "lucide-react";
+
+interface IntegrationStatus {
+  docusign: {
+    configured: boolean;
+    mode: string;
+    features: string[];
+  };
+  hubspot: {
+    configured: boolean;
+    features: string[];
+  };
+  google_maps: {
+    configured: boolean;
+    features: string[];
+  };
+  pvgis: {
+    configured: boolean;
+    features: string[];
+  };
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus | null>(null);
+  const [loadingIntegrations, setLoadingIntegrations] = useState(false);
+
+  // Fetch integration status
+  const fetchIntegrationStatus = async () => {
+    setLoadingIntegrations(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/integrations/status`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setIntegrationStatus(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch integration status:", error);
+    } finally {
+      setLoadingIntegrations(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "integrations") {
+      fetchIntegrationStatus();
+    }
+  }, [activeTab]);
 
   // Form states
   const [profile, setProfile] = useState({
@@ -400,70 +458,203 @@ export default function SettingsPage() {
             {/* Integrations Tab */}
             {activeTab === "integrations" && (
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-lg font-semibold mb-1">Integrationen</h2>
-                  <p className="text-sm text-slate-500">
-                    Verbinden Sie externe Dienste
-                  </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold mb-1">Integrationen</h2>
+                    <p className="text-sm text-slate-500">
+                      Verbinden Sie externe Dienste für erweiterte Funktionen
+                    </p>
+                  </div>
+                  <button
+                    onClick={fetchIntegrationStatus}
+                    disabled={loadingIntegrations}
+                    className="btn-secondary flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loadingIntegrations ? "animate-spin" : ""}`} />
+                    Aktualisieren
+                  </button>
                 </div>
 
-                <div className="space-y-4">
-                  {/* HubSpot */}
-                  <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <span className="text-xl font-bold text-orange-600">H</span>
+                {loadingIntegrations && !integrationStatus ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* DocuSign */}
+                    <div className={`flex items-center justify-between p-4 border rounded-lg ${
+                      integrationStatus?.docusign?.configured
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-slate-200"
+                    }`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                          integrationStatus?.docusign?.configured
+                            ? "bg-emerald-100"
+                            : "bg-blue-100"
+                        }`}>
+                          <FileSignature className={`w-6 h-6 ${
+                            integrationStatus?.docusign?.configured
+                              ? "text-emerald-600"
+                              : "text-blue-600"
+                          }`} />
+                        </div>
+                        <div>
+                          <p className="font-medium">DocuSign E-Signatur</p>
+                          {integrationStatus?.docusign?.configured ? (
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-emerald-600" />
+                              <span className="text-sm text-emerald-700">
+                                Verbunden ({integrationStatus.docusign.mode})
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-500">
+                              Digitale Unterschriften für Angebote
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">HubSpot CRM</p>
-                        <p className="text-sm text-slate-500">
-                          Synchronisiere Projekte und Angebote
-                        </p>
+                      <div className="text-right">
+                        {integrationStatus?.docusign?.configured ? (
+                          <div className="text-xs text-slate-500">
+                            {integrationStatus.docusign.features.join(", ")}
+                          </div>
+                        ) : (
+                          <button className="btn-secondary flex items-center gap-2">
+                            Verbinden
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <button className="btn-secondary flex items-center gap-2">
-                      Verbinden
-                      <ExternalLink className="w-4 h-4" />
-                    </button>
-                  </div>
 
-                  {/* DocuSign */}
-                  <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <span className="text-xl font-bold text-blue-600">D</span>
+                    {/* HubSpot */}
+                    <div className={`flex items-center justify-between p-4 border rounded-lg ${
+                      integrationStatus?.hubspot?.configured
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-slate-200"
+                    }`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                          integrationStatus?.hubspot?.configured
+                            ? "bg-emerald-100"
+                            : "bg-orange-100"
+                        }`}>
+                          <Globe className={`w-6 h-6 ${
+                            integrationStatus?.hubspot?.configured
+                              ? "text-emerald-600"
+                              : "text-orange-600"
+                          }`} />
+                        </div>
+                        <div>
+                          <p className="font-medium">HubSpot CRM</p>
+                          {integrationStatus?.hubspot?.configured ? (
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-emerald-600" />
+                              <span className="text-sm text-emerald-700">Verbunden</span>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-500">
+                              Synchronisiere Kontakte, Firmen und Deals
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">DocuSign</p>
-                        <p className="text-sm text-slate-500">
-                          Digitale Unterschriften für Angebote
-                        </p>
+                      <div className="text-right">
+                        {integrationStatus?.hubspot?.configured ? (
+                          <div className="text-xs text-slate-500">
+                            {integrationStatus.hubspot.features.join(", ")}
+                          </div>
+                        ) : (
+                          <button className="btn-secondary flex items-center gap-2">
+                            Verbinden
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <button className="btn-secondary flex items-center gap-2">
-                      Verbinden
-                      <ExternalLink className="w-4 h-4" />
-                    </button>
-                  </div>
 
-                  {/* Google Maps */}
-                  <div className="flex items-center justify-between p-4 border border-emerald-200 bg-emerald-50 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                        <span className="text-xl font-bold text-emerald-600">G</span>
+                    {/* Google Maps */}
+                    <div className={`flex items-center justify-between p-4 border rounded-lg ${
+                      integrationStatus?.google_maps?.configured
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-slate-200"
+                    }`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                          integrationStatus?.google_maps?.configured
+                            ? "bg-emerald-100"
+                            : "bg-red-100"
+                        }`}>
+                          <MapPin className={`w-6 h-6 ${
+                            integrationStatus?.google_maps?.configured
+                              ? "text-emerald-600"
+                              : "text-red-600"
+                          }`} />
+                        </div>
+                        <div>
+                          <p className="font-medium">Google Maps API</p>
+                          {integrationStatus?.google_maps?.configured ? (
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-emerald-600" />
+                              <span className="text-sm text-emerald-700">Verbunden</span>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-500">
+                              Geocoding und Satellitenbilder
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">Google Maps API</p>
-                        <p className="text-sm text-emerald-700">
-                          Verbunden ✓
+                      <div className="text-right">
+                        {integrationStatus?.google_maps?.configured ? (
+                          <div className="text-xs text-slate-500">
+                            {integrationStatus.google_maps.features.join(", ")}
+                          </div>
+                        ) : (
+                          <button className="btn-secondary flex items-center gap-2">
+                            Konfigurieren
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* PVGIS */}
+                    <div className="flex items-center justify-between p-4 border border-emerald-200 bg-emerald-50 rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                          <Sun className="w-6 h-6 text-emerald-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">PVGIS (EU JRC)</p>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-emerald-600" />
+                            <span className="text-sm text-emerald-700">
+                              Immer verfügbar (Public API)
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-slate-500">
+                        {integrationStatus?.pvgis?.features?.join(", ") || "tmy-data, pv-estimation, monthly-radiation"}
+                      </div>
+                    </div>
+
+                    {/* Info Box */}
+                    <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg mt-6">
+                      <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium mb-1">API-Schlüssel konfigurieren</p>
+                        <p>
+                          Integrationen werden über Umgebungsvariablen im Backend konfiguriert.
+                          Kontaktieren Sie Ihren Administrator, um neue Integrationen zu aktivieren.
                         </p>
                       </div>
                     </div>
-                    <button className="text-emerald-600 font-medium text-sm">
-                      Konfigurieren
-                    </button>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
