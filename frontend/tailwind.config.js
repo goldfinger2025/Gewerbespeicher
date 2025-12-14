@@ -1,9 +1,29 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  // Safelist for dynamically generated classes that Tailwind can't detect
+  safelist: [
+    // Status colors (bg)
+    'bg-slate-100', 'bg-slate-200',
+    'bg-blue-100', 'bg-blue-50', 'bg-blue-50/50',
+    'bg-emerald-100', 'bg-emerald-50', 'bg-emerald-50/50',
+    'bg-amber-100', 'bg-amber-50',
+    'bg-green-100',
+    'bg-red-100',
+    'bg-purple-100', 'bg-purple-50', 'bg-purple-50/50',
+    // Status colors (text)
+    'text-slate-600', 'text-slate-700',
+    'text-blue-600', 'text-blue-700',
+    'text-emerald-600', 'text-emerald-700',
+    'text-amber-600', 'text-amber-700',
+    'text-green-600', 'text-green-700',
+    'text-red-600', 'text-red-700',
+    'text-purple-600', 'text-purple-700',
+    // Border colors for scenarios
+    'border-blue-300', 'border-emerald-300', 'border-purple-300',
   ],
   theme: {
     extend: {

@@ -219,20 +219,28 @@ export function EnergyFlowDiagram({
             </>
           )}
 
-          {/* Icons inside nodes */}
-          <g transform="translate(70, 105)">
-            <Sun className="w-5 h-5 text-white" />
-          </g>
-          <g transform="translate(390, 105)">
-            <Home className="w-5 h-5 text-white" />
-          </g>
-          <g transform="translate(237, 277)">
-            <Zap className="w-4 h-4 text-white" />
-          </g>
+          {/* Icons inside nodes - using foreignObject for React components */}
+          <foreignObject x="70" y="105" width="24" height="24">
+            <div className="w-6 h-6 flex items-center justify-center">
+              <Sun className="w-5 h-5 text-white" />
+            </div>
+          </foreignObject>
+          <foreignObject x="390" y="105" width="24" height="24">
+            <div className="w-6 h-6 flex items-center justify-center">
+              <Home className="w-5 h-5 text-white" />
+            </div>
+          </foreignObject>
+          <foreignObject x="237" y="277" width="20" height="20">
+            <div className="w-5 h-5 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+          </foreignObject>
           {batteryCapacity > 0 && (
-            <g transform="translate(237, 57)">
-              <Battery className="w-4 h-4 text-white" />
-            </g>
+            <foreignObject x="237" y="57" width="20" height="20">
+              <div className="w-5 h-5 flex items-center justify-center">
+                <Battery className="w-4 h-4 text-white" />
+              </div>
+            </foreignObject>
           )}
         </svg>
       </div>

@@ -37,6 +37,24 @@ export default function OffersPage() {
   const offers: Offer[] = data?.items || [];
   const total = data?.total || 0;
 
+  const statusBgColors: Record<string, string> = {
+    draft: "bg-slate-100",
+    sent: "bg-blue-100",
+    viewed: "bg-amber-100",
+    signed: "bg-emerald-100",
+    completed: "bg-green-100",
+    rejected: "bg-red-100",
+  };
+
+  const statusTextColors: Record<string, string> = {
+    draft: "text-slate-700",
+    sent: "text-blue-700",
+    viewed: "text-amber-700",
+    signed: "text-emerald-700",
+    completed: "text-green-700",
+    rejected: "text-red-700",
+  };
+
   const statusColors: Record<string, string> = {
     draft: "bg-slate-100 text-slate-700",
     sent: "bg-blue-100 text-blue-700",
@@ -153,11 +171,11 @@ export default function OffersPage() {
                   <div className="flex items-center gap-4">
                     <div
                       className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        statusColors[offer.status]?.split(" ")[0] || "bg-slate-100"
+                        statusBgColors[offer.status] || "bg-slate-100"
                       }`}
                     >
                       <StatusIcon className={`w-5 h-5 ${
-                        statusColors[offer.status]?.split(" ")[1] || "text-slate-700"
+                        statusTextColors[offer.status] || "text-slate-700"
                       }`} />
                     </div>
                     <div>
