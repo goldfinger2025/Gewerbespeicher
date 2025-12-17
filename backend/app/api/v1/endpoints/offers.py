@@ -5,12 +5,13 @@ Generate and manage quotes/offers with Claude AI integration
 
 import os
 import logging
+import html as html_escape
 from fastapi import APIRouter, HTTPException, Depends, Query, status
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from app.database import get_db
@@ -76,7 +77,7 @@ def offer_to_response(offer: Offer) -> OfferResponse:
         offer_text=offer.offer_text,
         pdf_path=offer.pdf_path,
         is_signed=offer.is_signed,
-        valid_until=datetime.combine(offer.valid_until, datetime.min.time()) if offer.valid_until else datetime.utcnow(),
+        valid_until=datetime.combine(offer.valid_until, datetime.min.time()) if offer.valid_until else datetime.now(timezone.utc),
         status=offer.status,
         created_at=offer.created_at,
     )
@@ -333,12 +334,16 @@ async def get_offer_preview(
     # Format valid_until date
     valid_until_str = offer.valid_until.strftime('%d.%m.%Y') if offer.valid_until else "N/A"
 
+    # Escape HTML content to prevent XSS attacks
+    safe_offer_number = html_escape.escape(offer.offer_number or '')
+    safe_offer_text = html_escape.escape(offer.offer_text or '')
+
     # Return HTML preview
     html = f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Angebot {offer.offer_number}</title>
+        <title>Angebot {safe_offer_number}</title>
         <style>
             body {{ font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }}
             h1 {{ color: #1e40af; }}
@@ -347,11 +352,11 @@ async def get_offer_preview(
         </style>
     </head>
     <body>
-        <h1>Angebot {offer.offer_number}</h1>
+        <h1>Angebot {safe_offer_number}</h1>
         <div class="meta">
             Gültig bis: {valid_until_str}
         </div>
-        <div class="content">{offer.offer_text or ''}</div>
+        <div class="content">{safe_offer_text}</div>
     </body>
     </html>
     """
@@ -400,7 +405,7 @@ async def get_signature_link(
     # TODO: Integrate with DocuSign
     return {
         "signature_link": f"https://docusign.example.com/sign/{offer_id}",
-        "expires_at": (datetime.utcnow() + timedelta(days=7)).isoformat()
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
     }
 
 
@@ -459,7 +464,7 @@ async def send_offer(
     return {
         "message": "Angebot gesendet" if email_result["success"] else "Angebot als gesendet markiert",
         "sent_to": request.customer_email,
-        "sent_at": datetime.utcnow().isoformat(),
+        "sent_at": datetime.now(timezone.utc).isoformat(),
         "email_status": email_result
     }
 

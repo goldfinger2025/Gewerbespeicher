@@ -121,7 +121,7 @@ const api = {
   },
 
   getProjectSimulations: async (projectId: string) => {
-    const response = await client.get(`/projects/${projectId}/simulations`);
+    const response = await client.get(`/simulations/project/${projectId}`);
     return response.data;
   },
 

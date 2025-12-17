@@ -4,11 +4,12 @@ CRUD operations for PV+Storage projects
 """
 
 from fastapi import APIRouter, HTTPException, Query, Depends, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
 from uuid import UUID
+import re
 
 from app.database import get_db
 from app.models.user import User
@@ -20,32 +21,91 @@ from app.api.deps import get_current_user
 router = APIRouter()
 
 
+# ============ GEOCODING HELPER ============
+
+# German postal code regions with approximate center coordinates
+# First digit of PLZ maps to region
+PLZ_REGION_COORDS = {
+    "0": (51.05, 13.74),   # Sachsen, Thüringen (Dresden area)
+    "1": (52.52, 13.40),   # Berlin, Brandenburg
+    "2": (53.55, 10.00),   # Hamburg, Schleswig-Holstein, Niedersachsen Nord
+    "3": (52.37, 9.74),    # Niedersachsen, Sachsen-Anhalt
+    "4": (51.96, 7.63),    # Nordrhein-Westfalen Nord
+    "5": (50.94, 6.96),    # Nordrhein-Westfalen Süd (Köln area)
+    "6": (50.11, 8.68),    # Hessen, Rheinland-Pfalz (Frankfurt area)
+    "7": (48.78, 9.18),    # Baden-Württemberg (Stuttgart area)
+    "8": (48.14, 11.58),   # Bayern (München area)
+    "9": (49.45, 11.08),   # Bayern Nord (Nürnberg area)
+}
+
+
+def get_coordinates_from_plz(postal_code: str) -> tuple[float, float]:
+    """
+    Get approximate coordinates based on German postal code.
+    Uses the first digit for region mapping and adds small variations
+    based on the full postal code for differentiation.
+
+    Args:
+        postal_code: German 5-digit postal code
+
+    Returns:
+        Tuple of (latitude, longitude)
+    """
+    if not postal_code or len(postal_code) < 1:
+        # Default: Germany center
+        return (51.16, 10.45)
+
+    first_digit = postal_code[0]
+    base_lat, base_lon = PLZ_REGION_COORDS.get(first_digit, (51.16, 10.45))
+
+    # Add small variation based on full PLZ for more accurate positioning
+    try:
+        plz_num = int(postal_code[:5]) if len(postal_code) >= 5 else int(postal_code)
+        # Spread within ~0.5 degrees based on PLZ
+        lat_offset = ((plz_num % 1000) - 500) / 1000 * 0.5
+        lon_offset = ((plz_num % 500) - 250) / 500 * 0.5
+        return (base_lat + lat_offset, base_lon + lon_offset)
+    except ValueError:
+        return (base_lat, base_lon)
+
+
 # ============ PYDANTIC MODELS ============
 
 class ProjectCreate(BaseModel):
-    customer_name: str
+    customer_name: str = Field(..., min_length=2, max_length=255, description="Kundenname")
     customer_email: Optional[EmailStr] = None
-    customer_phone: Optional[str] = None
-    customer_company: Optional[str] = None
-    address: str
-    postal_code: str
-    city: Optional[str] = None
-    project_name: Optional[str] = None
-    description: Optional[str] = None
-    pv_peak_power_kw: float
-    pv_orientation: Optional[str] = "south"
-    pv_tilt_angle: Optional[float] = 30.0
-    roof_area_sqm: Optional[float] = None
-    battery_capacity_kwh: float
-    battery_power_kw: Optional[float] = None
-    battery_chemistry: Optional[str] = None
-    battery_manufacturer: Optional[str] = None
-    annual_consumption_kwh: float
-    peak_load_kw: Optional[float] = None
-    load_profile_type: Optional[str] = "office"  # office, retail, production, warehouse
-    electricity_price_eur_kwh: Optional[float] = 0.30
-    grid_fee_eur_kwh: Optional[float] = None
-    feed_in_tariff_eur_kwh: Optional[float] = 0.08
+    customer_phone: Optional[str] = Field(None, max_length=20)
+    customer_company: Optional[str] = Field(None, max_length=255)
+    address: str = Field(..., min_length=5, max_length=500, description="Adresse")
+    postal_code: str = Field(..., pattern=r"^\d{5}$", description="Deutsche PLZ (5 Ziffern)")
+    city: Optional[str] = Field(None, max_length=100)
+    project_name: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = Field(None, max_length=2000)
+    pv_peak_power_kw: float = Field(..., gt=0, le=10000, description="PV-Leistung in kWp (0.1-10000)")
+    pv_orientation: Optional[Literal["north", "south", "east", "west", "north-east", "north-west", "south-east", "south-west"]] = "south"
+    pv_tilt_angle: Optional[float] = Field(30.0, ge=0, le=90, description="Neigung in Grad (0-90)")
+    roof_area_sqm: Optional[float] = Field(None, gt=0, le=100000)
+    battery_capacity_kwh: float = Field(..., gt=0, le=100000, description="Speicherkapazität in kWh")
+    battery_power_kw: Optional[float] = Field(None, gt=0, le=50000)
+    battery_chemistry: Optional[Literal["lfp", "nmc", "lead-acid", "other"]] = None
+    battery_manufacturer: Optional[str] = Field(None, max_length=100)
+    annual_consumption_kwh: float = Field(..., gt=0, le=100000000, description="Jahresverbrauch in kWh")
+    peak_load_kw: Optional[float] = Field(None, gt=0, le=50000)
+    load_profile_type: Optional[Literal["office", "retail", "production", "warehouse"]] = "office"
+    electricity_price_eur_kwh: Optional[float] = Field(0.30, ge=0.01, le=2.0)
+    grid_fee_eur_kwh: Optional[float] = Field(None, ge=0, le=0.5)
+    feed_in_tariff_eur_kwh: Optional[float] = Field(0.08, ge=0, le=0.5)
+
+    @field_validator("customer_phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        # Remove spaces and check for valid phone format
+        cleaned = re.sub(r"[\s\-\(\)]", "", v)
+        if not re.match(r"^\+?[\d]{6,20}$", cleaned):
+            raise ValueError("Ungültige Telefonnummer")
+        return v
 
 
 class ProjectUpdate(BaseModel):
@@ -165,10 +225,9 @@ async def create_project(
     """
     Create a new project
     """
-    # Geocoding placeholder (TODO: Use Google Maps API)
-    # For now, use default coordinates for Schleswig-Holstein
-    latitude = 54.5 + (hash(project_data.postal_code) % 100) / 1000
-    longitude = 9.3 + (hash(project_data.address) % 100) / 1000
+    # Get coordinates from postal code
+    # TODO: In production, use Google Maps API for exact geocoding
+    latitude, longitude = get_coordinates_from_plz(project_data.postal_code)
 
     project = await project_crud.create_project(
         db=db,
