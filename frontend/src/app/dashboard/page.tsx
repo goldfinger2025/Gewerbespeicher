@@ -22,10 +22,18 @@ export default function DashboardPage() {
     queryFn: () => api.getProjects(),
   });
 
+  const { data: offers } = useQuery({
+    queryKey: ["offers"],
+    queryFn: () => api.getOffers(),
+  });
+
   // Calculate stats
   const totalProjects = projects?.items?.length || 0;
   const activeProjects = projects?.items?.filter((p: any) => p.status === "active")?.length || 0;
   const completedProjects = projects?.items?.filter((p: any) => p.status === "completed")?.length || 0;
+  const pendingOffers = offers?.items?.filter((o: any) =>
+    o.status === "draft" || o.status === "sent" || o.status === "viewed"
+  )?.length || 0;
 
   return (
     <div className="space-y-8">
@@ -90,7 +98,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-sm">Offene Angebote</p>
-              <p className="text-3xl font-bold mt-1">0</p>
+              <p className="text-3xl font-bold mt-1">{pendingOffers}</p>
             </div>
             <div className="bg-white/20 p-3 rounded-lg">
               <FileText className="w-6 h-6" />
