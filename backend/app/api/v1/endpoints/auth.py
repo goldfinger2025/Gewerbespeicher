@@ -320,3 +320,40 @@ async def change_password(
     )
 
     return {"message": "Passwort erfolgreich geändert"}
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/forgot-password")
+async def request_password_reset(
+    request: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Request a password reset email.
+
+    Note: For security reasons, this endpoint always returns success
+    regardless of whether the email exists in the database.
+    In production, this would send an email with a reset link.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Check if user exists (but don't reveal this to the client)
+    user = await user_crud.get_user_by_email(db, request.email)
+
+    if user:
+        # In production: Generate reset token and send email
+        # For now, just log it
+        logger.info(f"Password reset requested for: {request.email}")
+        # TODO: Implement email sending with reset token
+        # reset_token = create_reset_token({"sub": str(user.id)})
+        # await email_service.send_password_reset(user.email, reset_token)
+
+    # Always return success to prevent email enumeration
+    return {
+        "message": "Falls ein Konto mit dieser E-Mail existiert, wurde ein Link zum Zurücksetzen des Passworts gesendet."
+    }
+
