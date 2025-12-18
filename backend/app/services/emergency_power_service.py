@@ -14,7 +14,7 @@ Stand: Dezember 2025
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 import logging
 
@@ -131,7 +131,7 @@ class EmergencyPowerService:
             "kritische_lasten": {
                 "anzahl": len(critical_loads_kw),
                 "gesamt_kw": round(total_load_kw, 2),
-                "einzellasten_kw": [round(l, 2) for l in critical_loads_kw],
+                "einzellasten_kw": [round(load, 2) for load in critical_loads_kw],
             },
             "anforderungen": {
                 "backup_dauer_stunden": required_hours,
@@ -396,14 +396,14 @@ class EmergencyPowerService:
             })
 
         # Szenario 2: Nur Priorität 1
-        priority_1_loads = [l for l in sorted_loads if l.get('priority', 99) == 1]
-        priority_1_total = sum(l['power_kw'] for l in priority_1_loads)
+        priority_1_loads = [item for item in sorted_loads if item.get('priority', 99) == 1]
+        priority_1_total = sum(item['power_kw'] for item in priority_1_loads)
         if priority_1_total > 0 and priority_1_total <= battery_power_kw:
             runtime_p1 = usable_energy / priority_1_total
             scenarios.append({
                 "name": "Nur höchste Priorität",
                 "last_kw": round(priority_1_total, 2),
-                "lasten": [l['name'] for l in priority_1_loads],
+                "lasten": [item['name'] for item in priority_1_loads],
                 "laufzeit_stunden": round(runtime_p1, 1),
                 "machbar": True,
             })
@@ -452,11 +452,11 @@ class EmergencyPowerService:
             },
             "kritische_lasten": [
                 {
-                    "name": l.get('name', 'Unbekannt'),
-                    "leistung_kw": l['power_kw'],
-                    "prioritaet": l.get('priority', 99),
+                    "name": item.get('name', 'Unbekannt'),
+                    "leistung_kw": item['power_kw'],
+                    "prioritaet": item.get('priority', 99),
                 }
-                for l in sorted_loads
+                for item in sorted_loads
             ],
             "szenarien": scenarios,
             "empfehlung": self._generate_scenario_recommendation(scenarios, total_critical_load, battery_power_kw),
@@ -535,7 +535,7 @@ class EmergencyPowerService:
         if survived and final_soc > 0.3:
             return f"Batterie ausreichend dimensioniert. {round(final_soc*100)}% Restkapazität nach {duration_hours}h Ausfall."
         elif survived and final_soc > 0.15:
-            return f"Knapp bestanden. Für längere Ausfälle Kapazität um 30% erhöhen."
+            return "Knapp bestanden. Für längere Ausfälle Kapazität um 30% erhöhen."
         elif load_shedding > 0:
             return f"{load_shedding} Lastabwürfe während Simulation. Leistung und/oder Kapazität erhöhen."
         else:
