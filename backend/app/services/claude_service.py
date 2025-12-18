@@ -118,7 +118,6 @@ class ClaudeService:
                 project.get('pv_peak_power_kw', 0) * 1100 +
                 project.get('battery_capacity_kwh', 0) * 600 + 2000
             )
-        npv_20y = annual_savings * 15 - total_investment
 
         # Lastprofil-Info
         profile_type = project.get('load_profile_type', 'office')
