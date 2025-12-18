@@ -57,6 +57,9 @@ Thumbs.db
 out/
 .vercel
 
+# TypeScript
+*.tsbuildinfo
+
 # Testing
 .coverage
 htmlcov/
