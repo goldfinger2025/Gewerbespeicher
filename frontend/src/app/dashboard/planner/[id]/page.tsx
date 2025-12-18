@@ -103,9 +103,18 @@ export default function PlannerPage() {
 
   // Generate offer
   const generateOffer = useMutation({
-    mutationFn: () => api.createOffer(simulation?.simulation_id),
+    mutationFn: () => {
+      if (!simulation?.id) {
+        throw new Error("Keine Simulation vorhanden");
+      }
+      return api.createOffer(simulation.id);
+    },
     onSuccess: (result) => {
       router.push(`/dashboard/offers/${result.id}`);
+    },
+    onError: (error: Error) => {
+      console.error("Fehler beim Erstellen des Angebots:", error);
+      alert(`Fehler beim Erstellen des Angebots: ${error.message}`);
     },
   });
 
