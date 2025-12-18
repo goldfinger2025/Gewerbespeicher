@@ -143,16 +143,18 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo Account Notice */}
-          <div className="mt-6 pt-6 border-t border-slate-200">
-            <p className="text-center text-sm text-slate-500 mb-3">
-              Demo-Zugang:
-            </p>
-            <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600">
-              <p><strong>E-Mail:</strong> demo@ews-gmbh.de</p>
-              <p><strong>Passwort:</strong> demo123</p>
+          {/* Demo Account Notice - only shown in development */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <p className="text-center text-sm text-slate-500 mb-3">
+                Demo-Zugang (nur Entwicklung):
+              </p>
+              <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600">
+                <p><strong>E-Mail:</strong> demo@ews-gmbh.de</p>
+                <p><strong>Passwort:</strong> Demo1234</p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Register Link */}
           <p className="text-center text-sm text-slate-600 mt-6">

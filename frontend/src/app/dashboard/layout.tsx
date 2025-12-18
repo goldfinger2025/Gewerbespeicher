@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -15,8 +15,17 @@ import {
   X,
   ChevronRight,
   User,
+  Loader2,
 } from "lucide-react";
-import api from "@/lib/api-client";
+import api, { client } from "@/lib/api-client";
+
+interface UserInfo {
+  id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  company_name?: string;
+}
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -34,11 +43,34 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+
+  // Fetch current user info on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await client.get("/auth/me");
+        setUser(response.data);
+      } catch (error) {
+        // If unauthorized, redirect to login
+        router.push("/auth/login");
+      } finally {
+        setUserLoading(false);
+      }
+    };
+    fetchUser();
+  }, [router]);
 
   const handleLogout = () => {
     api.logout();
     router.push("/auth/login");
   };
+
+  // Helper to get display name
+  const displayName = user?.first_name && user?.last_name
+    ? `${user.first_name} ${user.last_name}`
+    : user?.email?.split("@")[0] || "Benutzer";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -104,11 +136,17 @@ export default function DashboardLayout({
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-slate-300" />
+              {userLoading ? (
+                <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
+              ) : (
+                <User className="w-5 h-5 text-slate-300" />
+              )}
             </div>
-            <div>
-              <p className="font-medium text-sm">Demo User</p>
-              <p className="text-xs text-slate-400">demo@ews-gmbh.de</p>
+            <div className="overflow-hidden">
+              <p className="font-medium text-sm truncate">{displayName}</p>
+              <p className="text-xs text-slate-400 truncate">
+                {user?.email || "Laden..."}
+              </p>
             </div>
           </div>
           <button
@@ -138,9 +176,11 @@ export default function DashboardLayout({
             </div>
 
             <div className="flex items-center gap-4">
-              <span className="text-sm text-slate-500 hidden md:block">
-                EWS GmbH
-              </span>
+              {user?.company_name && (
+                <span className="text-sm text-slate-500 hidden md:block">
+                  {user.company_name}
+                </span>
+              )}
             </div>
           </div>
         </header>

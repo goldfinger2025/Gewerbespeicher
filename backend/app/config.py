@@ -25,10 +25,31 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
 
     # JWT Authentication
-    SECRET_KEY: str = "your-super-secret-key-change-in-production"
+    # SECURITY: SECRET_KEY must be set via environment variable in production
+    # Generate a secure key with: openssl rand -hex 32
+    SECRET_KEY: str = "CHANGE-ME-IN-PRODUCTION-USE-OPENSSL-RAND-HEX-32"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    @field_validator("SECRET_KEY", mode="after")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """Ensure SECRET_KEY is not the default in production"""
+        import warnings
+        import os
+        if "CHANGE-ME" in v or "your-super-secret" in v:
+            env = os.getenv("ENVIRONMENT", "development")
+            if env == "production":
+                raise ValueError(
+                    "CRITICAL: SECRET_KEY must be set via environment variable in production! "
+                    "Generate with: openssl rand -hex 32"
+                )
+            warnings.warn(
+                "Using default SECRET_KEY - set via environment variable for production",
+                UserWarning
+            )
+        return v
 
     # API Keys
     ANTHROPIC_API_KEY: str = ""

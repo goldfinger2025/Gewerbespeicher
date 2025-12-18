@@ -11,29 +11,59 @@ import {
   ArrowRight,
   Clock,
   CheckCircle,
-  AlertCircle,
   Calculator,
 } from "lucide-react";
 import api from "@/lib/api-client";
 
+// Type definitions for API responses
+interface Project {
+  id: string;
+  customer_name: string;
+  project_name?: string;
+  city?: string;
+  postal_code?: string;
+  pv_peak_power_kw: number;
+  battery_capacity_kwh: number;
+  status: "draft" | "active" | "completed" | "archived";
+}
+
+interface Offer {
+  id: string;
+  offer_number: string;
+  status: "draft" | "sent" | "viewed" | "signed" | "completed" | "rejected";
+}
+
+interface ProjectsResponse {
+  total: number;
+  items: Project[];
+}
+
+interface OffersResponse {
+  total: number;
+  items: Offer[];
+}
+
 export default function DashboardPage() {
-  const { data: projects, isLoading } = useQuery({
+  const { data: projects, isLoading } = useQuery<ProjectsResponse>({
     queryKey: ["projects"],
     queryFn: () => api.getProjects(),
   });
 
-  const { data: offers } = useQuery({
+  const { data: offers } = useQuery<OffersResponse>({
     queryKey: ["offers"],
     queryFn: () => api.getOffers(),
   });
 
-  // Calculate stats
-  const totalProjects = projects?.items?.length || 0;
-  const activeProjects = projects?.items?.filter((p: any) => p.status === "active")?.length || 0;
-  const completedProjects = projects?.items?.filter((p: any) => p.status === "completed")?.length || 0;
-  const pendingOffers = offers?.items?.filter((o: any) =>
+  // Calculate stats with proper typing
+  const projectItems = projects?.items ?? [];
+  const offerItems = offers?.items ?? [];
+
+  const totalProjects = projectItems.length;
+  const activeProjects = projectItems.filter((p) => p.status === "active").length;
+  const completedProjects = projectItems.filter((p) => p.status === "completed").length;
+  const pendingOffers = offerItems.filter((o) =>
     o.status === "draft" || o.status === "sent" || o.status === "viewed"
-  )?.length || 0;
+  ).length;
 
   return (
     <div className="space-y-8">
@@ -126,9 +156,9 @@ export default function DashboardPage() {
               <div key={i} className="skeleton h-20 rounded-lg" />
             ))}
           </div>
-        ) : projects?.items?.length > 0 ? (
+        ) : projectItems.length > 0 ? (
           <div className="space-y-4">
-            {projects.items.slice(0, 5).map((project: any) => (
+            {projectItems.slice(0, 5).map((project) => (
               <div
                 key={project.id}
                 className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition"

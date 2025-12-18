@@ -566,10 +566,29 @@ async def download_offer_pdf(
                 detail="PDF konnte nicht generiert werden"
             )
     else:
-        # Load existing PDF
+        # Load existing PDF with path traversal protection
         pdf_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "pdfs")
         pdf_dir = os.path.abspath(pdf_dir)
-        pdf_full_path = os.path.join(pdf_dir, offer.pdf_path)
+
+        # SECURITY: Prevent path traversal attacks
+        # Only allow filename without path separators
+        safe_filename = os.path.basename(offer.pdf_path)
+        if safe_filename != offer.pdf_path or ".." in offer.pdf_path:
+            logger.warning(f"Potential path traversal attempt: {offer.pdf_path}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ungültiger PDF-Pfad"
+            )
+
+        pdf_full_path = os.path.join(pdf_dir, safe_filename)
+
+        # Additional check: ensure resolved path is within pdf_dir
+        if not os.path.abspath(pdf_full_path).startswith(pdf_dir):
+            logger.warning(f"Path traversal blocked: {pdf_full_path}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ungültiger PDF-Pfad"
+            )
 
         if not os.path.exists(pdf_full_path):
             # PDF file missing, regenerate
