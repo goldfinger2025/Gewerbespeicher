@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   User,
   Building,
@@ -20,7 +21,9 @@ import {
   FileSignature,
   MapPin,
   Sun,
+  Upload,
 } from "lucide-react";
+import { client } from "@/lib/api-client";
 
 interface IntegrationStatus {
   docusign: {
@@ -42,12 +45,73 @@ interface IntegrationStatus {
   };
 }
 
+interface UserProfile {
+  id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  company_name?: string;
+  phone?: string;
+}
+
 export default function SettingsPage() {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("profile");
-  const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus | null>(null);
   const [loadingIntegrations, setLoadingIntegrations] = useState(false);
+
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Fetch current user profile
+  const { data: userProfile, isLoading: profileLoading } = useQuery<UserProfile>({
+    queryKey: ["user-profile"],
+    queryFn: async () => {
+      const response = await client.get("/auth/me");
+      return response.data;
+    },
+  });
+
+  // Update profile mutation
+  const updateProfile = useMutation({
+    mutationFn: async (data: { first_name?: string; last_name?: string; company_name?: string; phone?: string }) => {
+      const response = await client.patch("/auth/me", null, { params: data });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      setSaveSuccess(true);
+      setSaveError(null);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    },
+    onError: (error: any) => {
+      setSaveError(error.response?.data?.detail || "Fehler beim Speichern");
+    },
+  });
+
+  // Change password mutation
+  const changePassword = useMutation({
+    mutationFn: async (data: { current_password: string; new_password: string }) => {
+      const response = await client.post("/auth/change-password", data);
+      return response.data;
+    },
+    onSuccess: () => {
+      setPasswordSuccess(true);
+      setPasswordError(null);
+      setPasswordData({ currentPassword: "", newPassword: "" });
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    },
+    onError: (error: any) => {
+      setPasswordError(error.response?.data?.detail || "Fehler beim Ändern des Passworts");
+    },
+  });
 
   // Fetch integration status
   const fetchIntegrationStatus = async () => {
@@ -79,13 +143,25 @@ export default function SettingsPage() {
     }
   }, [activeTab]);
 
-  // Form states
+  // Form states - initialized from user profile
   const [profile, setProfile] = useState({
-    name: "Demo User",
-    email: "demo@ews-gmbh.de",
-    company: "EWS GmbH",
-    phone: "+49 461 123456",
+    first_name: "",
+    last_name: "",
+    company_name: "",
+    phone: "",
   });
+
+  // Update profile state when user data loads
+  useEffect(() => {
+    if (userProfile) {
+      setProfile({
+        first_name: userProfile.first_name || "",
+        last_name: userProfile.last_name || "",
+        company_name: userProfile.company_name || "",
+        phone: userProfile.phone || "",
+      });
+    }
+  }, [userProfile]);
 
   const [notifications, setNotifications] = useState({
     emailOffers: true,
@@ -101,13 +177,169 @@ export default function SettingsPage() {
     offerValidityDays: "30",
   });
 
+  const handleSaveProfile = async () => {
+    updateProfile.mutate({
+      first_name: profile.first_name || undefined,
+      last_name: profile.last_name || undefined,
+      company_name: profile.company_name || undefined,
+      phone: profile.phone || undefined,
+    });
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      setPasswordError("Bitte beide Felder ausfüllen");
+      return;
+    }
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError("Neues Passwort muss mindestens 8 Zeichen haben");
+      return;
+    }
+    changePassword.mutate({
+      current_password: passwordData.currentPassword,
+      new_password: passwordData.newPassword,
+    });
+  };
+
   const handleSave = async () => {
-    setIsSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    if (activeTab === "profile") {
+      handleSaveProfile();
+    } else {
+      // For other tabs, show success (local storage for now)
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    }
+  };
+
+  const isSaving = updateProfile.isPending || changePassword.isPending;
+
+  // Company Tab as a separate component for logo upload state management
+  const CompanyTabContent = () => {
+    const [companyLogo, setCompanyLogo] = useState<string | null>(() => {
+      if (typeof window !== "undefined") {
+        return localStorage.getItem("company_logo");
+      }
+      return null;
+    });
+    const [companyData, setCompanyData] = useState({
+      name: "EWS GmbH",
+      address: "Industriestraße 1, 24983 Handewitt",
+      vatId: "DE123456789",
+      registry: "HRB 12345 FL",
+    });
+
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        // Validate file type
+        if (!file.type.startsWith("image/")) {
+          alert("Bitte wählen Sie eine Bilddatei aus.");
+          return;
+        }
+        // Validate file size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+          alert("Die Datei ist zu groß. Maximal 2MB erlaubt.");
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setCompanyLogo(base64);
+          localStorage.setItem("company_logo", base64);
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    const removeLogo = () => {
+      setCompanyLogo(null);
+      localStorage.removeItem("company_logo");
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold mb-1">Unternehmensdaten</h2>
+          <p className="text-sm text-slate-500">
+            Diese Daten erscheinen auf Ihren Angeboten
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <label className="label">Firmenname</label>
+            <input
+              type="text"
+              value={companyData.name}
+              onChange={(e) => setCompanyData({ ...companyData, name: e.target.value })}
+              className="input-field"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="label">Adresse</label>
+            <input
+              type="text"
+              value={companyData.address}
+              onChange={(e) => setCompanyData({ ...companyData, address: e.target.value })}
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="label">USt-IdNr.</label>
+            <input
+              type="text"
+              value={companyData.vatId}
+              onChange={(e) => setCompanyData({ ...companyData, vatId: e.target.value })}
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="label">Handelsregister</label>
+            <input
+              type="text"
+              value={companyData.registry}
+              onChange={(e) => setCompanyData({ ...companyData, registry: e.target.value })}
+              className="input-field"
+            />
+          </div>
+        </div>
+
+        <div className="pt-4 border-t border-slate-200">
+          <label className="label">Firmenlogo</label>
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+              {companyLogo ? (
+                <img src={companyLogo} alt="Firmenlogo" className="w-full h-full object-contain" />
+              ) : (
+                <Building className="w-10 h-10 text-slate-300" />
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="btn-secondary cursor-pointer inline-flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                Logo hochladen
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+              </label>
+              {companyLogo && (
+                <button
+                  onClick={removeLogo}
+                  className="text-sm text-red-600 hover:text-red-700"
+                >
+                  Logo entfernen
+                </button>
+              )}
+              <p className="text-xs text-slate-400">PNG, JPG oder SVG (max. 2MB)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const tabs = [
@@ -166,61 +398,105 @@ export default function SettingsPage() {
                   </p>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Name</label>
-                    <input
-                      type="text"
-                      value={profile.name}
-                      onChange={(e) =>
-                        setProfile({ ...profile, name: e.target.value })
-                      }
-                      className="input-field"
-                    />
+                {profileLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                   </div>
-                  <div>
-                    <label className="label">E-Mail</label>
-                    <input
-                      type="email"
-                      value={profile.email}
-                      onChange={(e) =>
-                        setProfile({ ...profile, email: e.target.value })
-                      }
-                      className="input-field"
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Unternehmen</label>
-                    <input
-                      type="text"
-                      value={profile.company}
-                      onChange={(e) =>
-                        setProfile({ ...profile, company: e.target.value })
-                      }
-                      className="input-field"
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Telefon</label>
-                    <input
-                      type="tel"
-                      value={profile.phone}
-                      onChange={(e) =>
-                        setProfile({ ...profile, phone: e.target.value })
-                      }
-                      className="input-field"
-                    />
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    {saveError && (
+                      <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+                        {saveError}
+                      </div>
+                    )}
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Vorname</label>
+                        <input
+                          type="text"
+                          value={profile.first_name}
+                          onChange={(e) =>
+                            setProfile({ ...profile, first_name: e.target.value })
+                          }
+                          className="input-field"
+                          placeholder="Max"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Nachname</label>
+                        <input
+                          type="text"
+                          value={profile.last_name}
+                          onChange={(e) =>
+                            setProfile({ ...profile, last_name: e.target.value })
+                          }
+                          className="input-field"
+                          placeholder="Mustermann"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">E-Mail</label>
+                        <input
+                          type="email"
+                          value={userProfile?.email || ""}
+                          disabled
+                          className="input-field bg-slate-50 text-slate-500 cursor-not-allowed"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">E-Mail kann nicht geändert werden</p>
+                      </div>
+                      <div>
+                        <label className="label">Unternehmen</label>
+                        <input
+                          type="text"
+                          value={profile.company_name}
+                          onChange={(e) =>
+                            setProfile({ ...profile, company_name: e.target.value })
+                          }
+                          className="input-field"
+                          placeholder="Firma GmbH"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="label">Telefon</label>
+                        <input
+                          type="tel"
+                          value={profile.phone}
+                          onChange={(e) =>
+                            setProfile({ ...profile, phone: e.target.value })
+                          }
+                          className="input-field"
+                          placeholder="+49 123 456789"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="pt-4 border-t border-slate-200">
                   <h3 className="font-medium mb-4">Passwort ändern</h3>
+
+                  {passwordError && (
+                    <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
+                      {passwordError}
+                    </div>
+                  )}
+
+                  {passwordSuccess && (
+                    <div className="bg-emerald-50 text-emerald-600 px-4 py-3 rounded-lg text-sm mb-4 flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      Passwort erfolgreich geändert
+                    </div>
+                  )}
+
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="label">Aktuelles Passwort</label>
                       <input
                         type="password"
                         placeholder="••••••••"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                         className="input-field"
                       />
                     </div>
@@ -228,70 +504,32 @@ export default function SettingsPage() {
                       <label className="label">Neues Passwort</label>
                       <input
                         type="password"
-                        placeholder="••••••••"
+                        placeholder="Mindestens 8 Zeichen"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                         className="input-field"
                       />
                     </div>
                   </div>
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={changePassword.isPending}
+                    className="btn-secondary mt-4 flex items-center gap-2"
+                  >
+                    {changePassword.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Lock className="w-4 h-4" />
+                    )}
+                    Passwort ändern
+                  </button>
                 </div>
               </div>
             )}
 
             {/* Company Tab */}
             {activeTab === "company" && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-lg font-semibold mb-1">Unternehmensdaten</h2>
-                  <p className="text-sm text-slate-500">
-                    Diese Daten erscheinen auf Ihren Angeboten
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="label">Firmenname</label>
-                    <input
-                      type="text"
-                      defaultValue="EWS GmbH"
-                      className="input-field"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="label">Adresse</label>
-                    <input
-                      type="text"
-                      defaultValue="Industriestraße 1, 24983 Handewitt"
-                      className="input-field"
-                    />
-                  </div>
-                  <div>
-                    <label className="label">USt-IdNr.</label>
-                    <input
-                      type="text"
-                      defaultValue="DE123456789"
-                      className="input-field"
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Handelsregister</label>
-                    <input
-                      type="text"
-                      defaultValue="HRB 12345 FL"
-                      className="input-field"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-200">
-                  <label className="label">Firmenlogo</label>
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center">
-                      <Building className="w-10 h-10 text-slate-300" />
-                    </div>
-                    <button className="btn-secondary">Logo hochladen</button>
-                  </div>
-                </div>
-              </div>
+              <CompanyTabContent />
             )}
 
             {/* Notifications Tab */}

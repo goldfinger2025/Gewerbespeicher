@@ -197,6 +197,26 @@ const api = {
     return response.data;
   },
 
+  dimensionSystem: async (
+    projectId: string,
+    constraints?: {
+      max_budget?: number;
+      max_roof_area?: number;
+      min_autonomy?: number;
+    }
+  ) => {
+    const response = await client.post("/ai/dimension", {
+      project_id: projectId,
+      constraints: constraints || null,
+    });
+    return response.data;
+  },
+
+  compareScenarios: async (projectId: string) => {
+    const response = await client.get(`/ai/compare/${projectId}`);
+    return response.data;
+  },
+
   getComponentRecommendations: async (projectId: string, budgetEur?: number) => {
     const response = await client.post("/ai/recommend-components", null, {
       params: { project_id: projectId, budget_eur: budgetEur },

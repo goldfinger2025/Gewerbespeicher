@@ -18,6 +18,11 @@ import {
   BarChart3,
   Workflow,
   Euro,
+  X,
+  CheckCircle,
+  TrendingUp,
+  Target,
+  Wallet,
 } from "lucide-react";
 import api from "@/lib/api-client";
 import { SimulationResults } from "@/components/visualizations/SimulationResults";
@@ -28,6 +33,18 @@ import { ProjectForm } from "@/components/forms/ProjectForm";
 
 type ResultsView = "overview" | "energy-flow" | "battery" | "financial";
 
+interface OptimizationResult {
+  optimized_pv_kw: number;
+  optimized_battery_kwh: number;
+  optimized_battery_power_kw: number;
+  expected_autonomy_percent: number;
+  expected_savings_eur: number;
+  expected_payback_years: number;
+  investment_delta_eur: number;
+  recommendations: string[];
+  reasoning: string;
+}
+
 export default function PlannerPage() {
   const params = useParams();
   const router = useRouter();
@@ -37,6 +54,9 @@ export default function PlannerPage() {
   const [activeTab, setActiveTab] = useState<"config" | "results" | "offer">("config");
   const [resultsView, setResultsView] = useState<ResultsView>("overview");
   const [isSimulating, setIsSimulating] = useState(false);
+  const [showOptimizationModal, setShowOptimizationModal] = useState(false);
+  const [optimizationTarget, setOptimizationTarget] = useState<"max-roi" | "max-autonomy" | "min-cost">("max-roi");
+  const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
 
   // Fetch project if editing
   const { data: project, isLoading: projectLoading } = useQuery({
@@ -88,6 +108,30 @@ export default function PlannerPage() {
       router.push(`/dashboard/offers/${result.id}`);
     },
   });
+
+  // KI-Optimization mutation
+  const optimizeSystem = useMutation({
+    mutationFn: async () => {
+      return api.optimize(projectId!, { optimization_target: optimizationTarget });
+    },
+    onSuccess: (result) => {
+      setOptimizationResult(result);
+    },
+  });
+
+  // Apply optimization to project
+  const applyOptimization = async () => {
+    if (!optimizationResult || !projectId) return;
+
+    await updateProject.mutateAsync({
+      pv_peak_power_kw: optimizationResult.optimized_pv_kw,
+      battery_capacity_kwh: optimizationResult.optimized_battery_kwh,
+      battery_power_kw: optimizationResult.optimized_battery_power_kw,
+    });
+
+    setShowOptimizationModal(false);
+    setOptimizationResult(null);
+  };
 
   // Handle form submit
   const handleFormSubmit = async (data: any) => {
@@ -289,7 +333,10 @@ export default function PlannerPage() {
                           Lassen Sie Claude die optimale Systemgröße für Ihren
                           Anwendungsfall berechnen.
                         </p>
-                        <button className="text-sm text-purple-600 font-medium mt-2 flex items-center gap-1 hover:text-purple-700">
+                        <button
+                          onClick={() => setShowOptimizationModal(true)}
+                          className="text-sm text-purple-600 font-medium mt-2 flex items-center gap-1 hover:text-purple-700"
+                        >
                           System optimieren
                           <ChevronRight className="w-4 h-4" />
                         </button>
@@ -298,6 +345,204 @@ export default function PlannerPage() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* KI Optimization Modal */}
+        {showOptimizationModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-purple-100 p-2 rounded-lg">
+                    <Sparkles className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">KI-Systemoptimierung</h2>
+                    <p className="text-sm text-slate-500">Powered by Claude Opus 4.5</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowOptimizationModal(false);
+                    setOptimizationResult(null);
+                  }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                {!optimizationResult ? (
+                  <>
+                    <p className="text-slate-600 mb-6">
+                      Wählen Sie Ihr Optimierungsziel. Claude analysiert Ihre Projektdaten
+                      und empfiehlt die optimale Systemkonfiguration.
+                    </p>
+
+                    {/* Optimization Target Selection */}
+                    <div className="grid gap-4 mb-6">
+                      <button
+                        onClick={() => setOptimizationTarget("max-roi")}
+                        className={`p-4 rounded-xl border-2 text-left transition ${
+                          optimizationTarget === "max-roi"
+                            ? "border-purple-500 bg-purple-50"
+                            : "border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${optimizationTarget === "max-roi" ? "bg-purple-100" : "bg-slate-100"}`}>
+                            <TrendingUp className={`w-5 h-5 ${optimizationTarget === "max-roi" ? "text-purple-600" : "text-slate-500"}`} />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-slate-900">Maximaler ROI</h3>
+                            <p className="text-sm text-slate-500">Schnellste Amortisation der Investition</p>
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => setOptimizationTarget("max-autonomy")}
+                        className={`p-4 rounded-xl border-2 text-left transition ${
+                          optimizationTarget === "max-autonomy"
+                            ? "border-purple-500 bg-purple-50"
+                            : "border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${optimizationTarget === "max-autonomy" ? "bg-purple-100" : "bg-slate-100"}`}>
+                            <Target className={`w-5 h-5 ${optimizationTarget === "max-autonomy" ? "text-purple-600" : "text-slate-500"}`} />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-slate-900">Maximale Autarkie</h3>
+                            <p className="text-sm text-slate-500">Höchste Unabhängigkeit vom Stromnetz</p>
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => setOptimizationTarget("min-cost")}
+                        className={`p-4 rounded-xl border-2 text-left transition ${
+                          optimizationTarget === "min-cost"
+                            ? "border-purple-500 bg-purple-50"
+                            : "border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${optimizationTarget === "min-cost" ? "bg-purple-100" : "bg-slate-100"}`}>
+                            <Wallet className={`w-5 h-5 ${optimizationTarget === "min-cost" ? "text-purple-600" : "text-slate-500"}`} />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-slate-900">Minimale Kosten</h3>
+                            <p className="text-sm text-slate-500">Niedrigste Investitionskosten</p>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => optimizeSystem.mutate()}
+                      disabled={optimizeSystem.isPending}
+                      className="btn-primary w-full py-3 flex items-center justify-center gap-2"
+                    >
+                      {optimizeSystem.isPending ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Claude analysiert...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5" />
+                          Optimierung starten
+                        </>
+                      )}
+                    </button>
+
+                    {optimizeSystem.isError && (
+                      <p className="mt-4 text-red-600 text-sm">
+                        Fehler bei der Optimierung. Bitte versuchen Sie es erneut.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Optimization Results */}
+                    <div className="space-y-6">
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                        <div className="flex items-center gap-2 text-emerald-700 mb-2">
+                          <CheckCircle className="w-5 h-5" />
+                          <span className="font-semibold">Optimierung abgeschlossen</span>
+                        </div>
+                        <p className="text-sm text-emerald-600">{optimizationResult.reasoning}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 rounded-xl p-4">
+                          <p className="text-sm text-slate-500">Optimierte PV-Leistung</p>
+                          <p className="text-2xl font-bold text-amber-600">
+                            {optimizationResult.optimized_pv_kw.toFixed(1)} kWp
+                          </p>
+                        </div>
+                        <div className="bg-slate-50 rounded-xl p-4">
+                          <p className="text-sm text-slate-500">Optimierter Speicher</p>
+                          <p className="text-2xl font-bold text-emerald-600">
+                            {optimizationResult.optimized_battery_kwh.toFixed(1)} kWh
+                          </p>
+                        </div>
+                        <div className="bg-slate-50 rounded-xl p-4">
+                          <p className="text-sm text-slate-500">Erwartete Autarkie</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {optimizationResult.expected_autonomy_percent.toFixed(0)}%
+                          </p>
+                        </div>
+                        <div className="bg-slate-50 rounded-xl p-4">
+                          <p className="text-sm text-slate-500">Jährliche Ersparnis</p>
+                          <p className="text-2xl font-bold text-purple-600">
+                            {optimizationResult.expected_savings_eur.toLocaleString('de-DE')} €
+                          </p>
+                        </div>
+                      </div>
+
+                      {optimizationResult.recommendations.length > 0 && (
+                        <div className="border-t border-slate-200 pt-4">
+                          <h4 className="font-semibold text-slate-900 mb-2">Empfehlungen</h4>
+                          <ul className="space-y-2">
+                            {optimizationResult.recommendations.map((rec, idx) => (
+                              <li key={idx} className="flex items-start gap-2 text-sm text-slate-600">
+                                <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                                {rec}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div className="flex gap-4 pt-4">
+                        <button
+                          onClick={() => setOptimizationResult(null)}
+                          className="btn-secondary flex-1"
+                        >
+                          Andere Ziele prüfen
+                        </button>
+                        <button
+                          onClick={applyOptimization}
+                          disabled={updateProject.isPending}
+                          className="btn-primary flex-1 flex items-center justify-center gap-2"
+                        >
+                          {updateProject.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4" />
+                          )}
+                          Werte übernehmen
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
