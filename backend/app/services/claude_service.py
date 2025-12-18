@@ -95,82 +95,111 @@ class ClaudeService:
         components: Optional[List[Dict]] = None
     ) -> str:
         """
-        Generiert professionellen, überzeugenden Angebots-Text
-        
+        Generiert professionellen, Enterprise-Grade Angebots-Text
+
         Args:
             project: Projektdaten (Kunde, Standort, System)
             simulation: Simulationsergebnisse (KPIs)
             components: Optionale Komponentenliste
-            
+
         Returns:
-            Formatierter Angebots-Text auf Deutsch
+            Formatierter Angebots-Text auf Deutsch mit Markdown-Struktur
         """
         if not self.client:
             return self._fallback_offer_text(project, simulation)
-        
-        # System-Prompt für konsistente Ergebnisse
-        system_prompt = """Du bist ein erfahrener Energieberater und Vertriebsexperte 
-für gewerbliche PV-Speichersysteme in Deutschland. Du schreibst professionelle, 
-überzeugende Angebots-Texte die:
 
-1. Wirtschaftliche Vorteile klar herausstellen
-2. Technische Details verständlich erklären
-3. Umweltvorteile betonen
-4. Vertrauen aufbauen
-5. Zum Handeln motivieren
+        # Erweiterte KPIs berechnen
+        pv_generation = simulation.get('pv_generation_kwh', 0)
+        co2_savings_tons = pv_generation * 0.4 / 1000
+        annual_savings = simulation.get('annual_savings_eur', 0)
+        total_investment = simulation.get('total_investment_eur', 0)
+        if total_investment == 0:
+            total_investment = (
+                project.get('pv_peak_power_kw', 0) * 1100 +
+                project.get('battery_capacity_kwh', 0) * 600 + 2000
+            )
+        npv_20y = annual_savings * 15 - total_investment
 
-Schreibe auf Deutsch, professionell aber zugänglich. Vermeide übertriebene 
-Verkaufssprache. Nutze konkrete Zahlen aus den Simulationsergebnissen."""
+        # Lastprofil-Info
+        profile_type = project.get('load_profile_type', 'office')
+        profile_info = LOAD_PROFILE_CHARACTERISTICS.get(profile_type, LOAD_PROFILE_CHARACTERISTICS['office'])
 
-        # User-Prompt mit allen relevanten Daten
-        user_prompt = f"""Erstelle einen Angebots-Text für folgendes PV-Speicherprojekt:
+        # Enterprise-Grade System-Prompt
+        system_prompt = """Du bist Senior Energy Consultant bei einem führenden deutschen
+Energieunternehmen. Du erstellst professionelle Angebotstexte für Gewerbekunden, die:
 
-## KUNDENDATEN
-- Kunde: {project.get('customer_name', 'Kunde')}
-- Unternehmen: {project.get('customer_company', project.get('customer_name', ''))}
+1. Höchste Seriosität und Fachkompetenz ausstrahlen
+2. Wirtschaftliche Kennzahlen präzise und verständlich präsentieren
+3. Technische Exzellenz demonstrieren
+4. Vertrauen durch Transparenz aufbauen
+5. Entscheidungsträger auf C-Level überzeugen
+
+STILRICHTLINIEN:
+- Formelle Sie-Anrede durchgehend
+- Keine Marketing-Floskeln oder übertriebene Versprechen
+- Konkrete Zahlen und Fakten statt vager Aussagen
+- Strukturierter Aufbau mit klaren Abschnitten
+- Professionelle, aber zugängliche Sprache
+- Markdown-Formatierung für Struktur"""
+
+        user_prompt = f"""Erstelle einen professionellen Angebotstext für folgendes Gewerbeprojekt:
+
+KUNDE:
+- Ansprechpartner: {project.get('customer_name', 'Geschäftsführung')}
+- Unternehmen: {project.get('customer_company') or project.get('customer_name', '')}
+- Branche: {profile_info.get('name', 'Gewerbe')}
 - Standort: {project.get('address', '')}, {project.get('postal_code', '')} {project.get('city', '')}
 
-## SYSTEMKONFIGURATION
-- PV-Leistung: {project.get('pv_peak_power_kw', 0)} kWp
-- Speicherkapazität: {project.get('battery_capacity_kwh', 0)} kWh
-- Speicherleistung: {project.get('battery_power_kw', 0)} kW
+SYSTEMKONFIGURATION:
+- PV-Anlage: {project.get('pv_peak_power_kw', 0):.1f} kWp
+- Batteriespeicher: {project.get('battery_capacity_kwh', 0):.0f} kWh / {project.get('battery_power_kw', project.get('battery_capacity_kwh', 0) * 0.5):.0f} kW
 - Jahresverbrauch: {project.get('annual_consumption_kwh', 0):,.0f} kWh
-- Aktueller Strompreis: {project.get('electricity_price_eur_kwh', 0.30):.2f} €/kWh
+- Strompreis: {project.get('electricity_price_eur_kwh', 0.30):.2f} EUR/kWh
 
-## SIMULATIONSERGEBNISSE
-- PV-Erzeugung: {simulation.get('pv_generation_kwh', 0):,.0f} kWh/Jahr
-- Eigenverbrauch: {simulation.get('self_consumption_kwh', 0):,.0f} kWh/Jahr
-- Netzeinspeisung: {simulation.get('grid_export_kwh', 0):,.0f} kWh/Jahr
-- Netzbezug: {simulation.get('grid_import_kwh', 0):,.0f} kWh/Jahr
-- **Autarkiegrad: {simulation.get('autonomy_degree_percent', 0):.0f}%**
-- **Jährliche Einsparung: {simulation.get('annual_savings_eur', 0):,.0f} €**
-- **Amortisationszeit: {simulation.get('payback_period_years', 0):.1f} Jahre**
-- Speicher-Zyklen/Jahr: {simulation.get('battery_cycles', 0):.0f}
+SIMULATIONSERGEBNISSE:
+- PV-Erzeugung: {pv_generation:,.0f} kWh/Jahr
+- Spezifischer Ertrag: {pv_generation / max(project.get('pv_peak_power_kw', 1), 1):,.0f} kWh/kWp
+- Eigenverbrauch: {simulation.get('self_consumption_kwh', 0):,.0f} kWh ({simulation.get('self_consumption_ratio_percent', 0):.0f}%)
+- Netzeinspeisung: {simulation.get('grid_export_kwh', 0):,.0f} kWh
+- Restnetzbezug: {simulation.get('grid_import_kwh', 0):,.0f} kWh
+- AUTARKIEGRAD: {simulation.get('autonomy_degree_percent', 0):.0f}%
+- Speicher-Zyklen: {simulation.get('battery_cycles', 250):.0f}/Jahr
 
-## AUFGABE
-Schreibe einen Angebots-Text mit:
-1. Persönlicher Anrede und Bezug zum Standort
-2. Zusammenfassung der Systemkonfiguration
-3. Hervorhebung der wirtschaftlichen Vorteile (Einsparungen, ROI)
-4. Erklärung des Autarkiegrads und was das für den Kunden bedeutet
-5. Umweltvorteile (CO2-Einsparung ca. 400g/kWh)
-6. Call-to-Action
+WIRTSCHAFTLICHKEIT:
+- Investition (geschätzt): {total_investment:,.0f} EUR
+- Jährliche Ersparnis: {annual_savings:,.0f} EUR
+- Amortisation: {simulation.get('payback_period_years', 8):.1f} Jahre
+- Ersparnis 20 Jahre: ca. {annual_savings * 18:,.0f} EUR
+- CO2-Vermeidung: {co2_savings_tons:.1f} t/Jahr ({co2_savings_tons * 25:.0f} t über 25 Jahre)
 
-Länge: 3-4 Absätze, professionell und überzeugend.
-"""
+AUFGABE:
+Verfasse einen strukturierten, professionellen Angebotstext (ca. 450 Wörter) mit:
+
+## Executive Summary
+(3-4 Sätze: System-Highlights, Autarkiegrad, wichtigste Ersparnis-Kennzahl)
+
+## Ihre maßgeschneiderte Systemlösung
+(PV + Speicher Beschreibung, intelligentes Energiemanagement, Qualität)
+
+## Wirtschaftlichkeitsanalyse
+(Jährliche Ersparnis, Amortisation, langfristiger Wert mit konkreten Zahlen)
+
+## Ihr Beitrag zur Nachhaltigkeit
+(CO2-Einsparung konkret, unternehmerische Verantwortung)
+
+## Nächste Schritte
+(Konkreter Call-to-Action, Vor-Ort-Termin anbieten)
+
+Verwende **fett** für wichtige Kennzahlen. Schreibe sachlich und professionell."""
 
         try:
             message = self.client.messages.create(
-                model="claude-sonnet-4-20250514",  # Oder claude-opus-4-5 wenn verfügbar
-                max_tokens=1500,
-                messages=[
-                    {"role": "user", "content": user_prompt}
-                ],
+                model="claude-sonnet-4-20250514",
+                max_tokens=2500,
+                messages=[{"role": "user", "content": user_prompt}],
                 system=system_prompt
             )
-            
             return message.content[0].text
-            
         except Exception as e:
             logger.error(f"Claude API Fehler: {e}")
             return self._fallback_offer_text(project, simulation)
@@ -721,34 +750,57 @@ Erstelle modularen Angebotstext als JSON:
     # ============ FALLBACK METHODS ============
     
     def _fallback_offer_text(self, project: Dict, simulation: Dict) -> str:
-        """Fallback wenn Claude nicht verfügbar"""
-        return f"""
-Sehr geehrte/r {project.get('customer_name', 'Kunde')},
+        """Fallback wenn Claude nicht verfügbar - Enterprise-Grade Template"""
+        customer = project.get('customer_name', 'Geschäftsführung')
+        company = project.get('customer_company') or customer
+        city = project.get('city', project.get('postal_code', ''))
+        pv_kw = project.get('pv_peak_power_kw', 0)
+        battery_kwh = project.get('battery_capacity_kwh', 0)
+        consumption = project.get('annual_consumption_kwh', 0)
 
-vielen Dank für Ihr Interesse an einer PV-Speicherlösung für Ihr Gewerbeobjekt 
-in {project.get('city', project.get('postal_code', ''))}.
+        pv_generation = simulation.get('pv_generation_kwh', 0)
+        autonomy = simulation.get('autonomy_degree_percent', 0)
+        savings = simulation.get('annual_savings_eur', 0)
+        payback = simulation.get('payback_period_years', 8)
+        co2_tons = pv_generation * 0.4 / 1000
 
-**Ihre maßgeschneiderte Systemkonfiguration:**
-- PV-Leistung: {project.get('pv_peak_power_kw', 0)} kWp
-- Speicherkapazität: {project.get('battery_capacity_kwh', 0)} kWh
-- Für Ihren Jahresverbrauch von {project.get('annual_consumption_kwh', 0):,.0f} kWh optimiert
+        total_investment = pv_kw * 1100 + battery_kwh * 600 + 2000
 
-**Ihre Vorteile auf einen Blick:**
-- Autarkiegrad: {simulation.get('autonomy_degree_percent', 0):.0f}% – Sie decken einen Großteil 
-  Ihres Strombedarfs selbst
-- Jährliche Einsparung: {simulation.get('annual_savings_eur', 0):,.0f} € durch reduzierten 
-  Netzbezug und Einspeisevergütung
-- Amortisationszeit: {simulation.get('payback_period_years', 0):.1f} Jahre
-- CO₂-Einsparung: ca. {simulation.get('pv_generation_kwh', 0) * 0.4 / 1000:.1f} Tonnen pro Jahr
+        return f"""## Executive Summary
 
-Mit diesem System machen Sie sich unabhängiger von steigenden Strompreisen und 
-leisten gleichzeitig einen wichtigen Beitrag zum Klimaschutz.
+Sehr geehrte Damen und Herren,
 
-Gerne erstellen wir Ihnen ein detailliertes Angebot mit konkreten Komponenten 
-und Installationskosten. Kontaktieren Sie uns für eine persönliche Beratung.
+für Ihren Standort in {city} haben wir eine individuelle PV-Speicherlösung konzipiert. Mit einer **{pv_kw:.0f} kWp Photovoltaikanlage** und einem **{battery_kwh:.0f} kWh Batteriespeicher** erreichen Sie einen **Autarkiegrad von {autonomy:.0f}%**. Die prognostizierte jährliche Ersparnis beträgt **{savings:,.0f} EUR**.
+
+## Ihre maßgeschneiderte Systemlösung
+
+Das für {company} dimensionierte System umfasst eine leistungsstarke Photovoltaikanlage mit {pv_kw:.0f} kWp Nennleistung, die jährlich ca. {pv_generation:,.0f} kWh Solarstrom erzeugt. Der integrierte Lithium-Eisenphosphat-Speicher mit {battery_kwh:.0f} kWh Kapazität optimiert Ihren Eigenverbrauch, indem überschüssiger Solarstrom zwischengespeichert und bei Bedarf wieder abgegeben wird.
+
+Ein intelligentes Energiemanagementsystem koordiniert automatisch PV-Erzeugung, Speicherladung und Verbrauch, um Ihren Eigenverbrauchsanteil zu maximieren und den Netzbezug zu minimieren.
+
+## Wirtschaftlichkeitsanalyse
+
+Basierend auf Ihrem Jahresverbrauch von {consumption:,.0f} kWh und dem aktuellen Strompreis erzielen Sie folgende wirtschaftliche Vorteile:
+
+- **Jährliche Ersparnis:** {savings:,.0f} EUR
+- **Amortisationszeit:** {payback:.1f} Jahre
+- **Gesamtersparnis (20 Jahre):** ca. {savings * 18:,.0f} EUR (inkl. Degradation)
+- **Geschätzte Investition:** ca. {total_investment:,.0f} EUR
+
+Nach der Amortisation profitieren Sie für weitere 15+ Jahre von nahezu kostenlosem Solarstrom.
+
+## Ihr Beitrag zur Nachhaltigkeit
+
+Mit dieser Anlage vermeiden Sie jährlich ca. **{co2_tons:.1f} Tonnen CO₂-Emissionen**. Über die Lebensdauer von 25 Jahren entspricht dies ca. {co2_tons * 25:.0f} Tonnen eingespartem Kohlendioxid – ein bedeutender Beitrag zum Klimaschutz und zur Erreichung Ihrer Nachhaltigkeitsziele.
+
+## Nächste Schritte
+
+Gerne präsentieren wir Ihnen die detaillierte Planung in einem persönlichen Gespräch. Wir vereinbaren einen Vor-Ort-Termin, um die technischen Gegebenheiten zu prüfen und Ihnen ein verbindliches Angebot zu unterbreiten.
+
+Kontaktieren Sie uns für Ihre individuelle Beratung.
 
 Mit freundlichen Grüßen,
-Ihr EWS Team
+Ihr EWS Energieberatungs-Team
 """
     
     def _fallback_optimization(self, project: Dict, target: str) -> Dict:
