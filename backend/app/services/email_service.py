@@ -5,6 +5,7 @@ Handles sending emails for offer notifications
 
 import logging
 import smtplib
+import html
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -14,6 +15,13 @@ from datetime import datetime
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_for_html(text: str) -> str:
+    """Sanitize text for safe HTML embedding to prevent XSS"""
+    if not text:
+        return ""
+    return html.escape(str(text))
 
 
 class EmailService:
@@ -71,16 +79,22 @@ class EmailService:
             msg['From'] = f"{self.from_name} <{self.from_email}>"
             msg['To'] = to_email
 
+            # SECURITY: Sanitize all user-provided content to prevent XSS
+            safe_customer_name = sanitize_for_html(customer_name)
+            safe_offer_number = sanitize_for_html(offer_number)
+            safe_offer_text = sanitize_for_html(offer_text[:500])
+            safe_custom_message = sanitize_for_html(custom_message) if custom_message else ""
+
             # Build email content
             validity_text = ""
             if valid_until:
                 validity_text = f"<p><strong>Gültig bis:</strong> {valid_until.strftime('%d.%m.%Y')}</p>"
 
             custom_section = ""
-            if custom_message:
+            if safe_custom_message:
                 custom_section = f"""
                 <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <p style="margin: 0; color: #1e40af;">{custom_message}</p>
+                    <p style="margin: 0; color: #1e40af;">{safe_custom_message}</p>
                 </div>
                 """
 
@@ -103,10 +117,10 @@ class EmailService:
                 <div class="container">
                     <div class="header">
                         <h1 style="margin: 0;">Ihr PV-Speicher Angebot</h1>
-                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Angebot Nr. {offer_number}</p>
+                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Angebot Nr. {safe_offer_number}</p>
                     </div>
                     <div class="content">
-                        <p>Sehr geehrte(r) {customer_name},</p>
+                        <p>Sehr geehrte(r) {safe_customer_name},</p>
 
                         <p>vielen Dank für Ihr Interesse an unseren PV-Speicherlösungen.
                         Anbei erhalten Sie Ihr individuelles Angebot.</p>
@@ -114,12 +128,12 @@ class EmailService:
                         {custom_section}
 
                         <div class="highlight">
-                            <p style="margin: 0;"><strong>Angebotsnummer:</strong> {offer_number}</p>
+                            <p style="margin: 0;"><strong>Angebotsnummer:</strong> {safe_offer_number}</p>
                             {validity_text}
                         </div>
 
                         <h3>Zusammenfassung</h3>
-                        <p>{offer_text[:500]}{'...' if len(offer_text) > 500 else ''}</p>
+                        <p>{safe_offer_text}{'...' if len(offer_text) > 500 else ''}</p>
 
                         <p>Das vollständige Angebot finden Sie im beigefügten PDF-Dokument.</p>
 

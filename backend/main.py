@@ -3,14 +3,22 @@ Gewerbespeicher Planner API
 Main FastAPI Application Entry Point
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.api.v1.router import router as v1_router
 from app.database import init_db, close_db
+
+# Initialize Rate Limiter
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 # Setup Logging
 logging.basicConfig(
@@ -48,7 +56,7 @@ app = FastAPI(
     title="Gewerbespeicher Planner API",
     description="""
     KI-gestützte Planung und Angebotserstellung für PV-Speichersysteme.
-    
+
     ## Features
     - 🔋 PV + Speicher Simulation
     - 📊 Wirtschaftlichkeitsberechnung
@@ -60,6 +68,21 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+
+# Add Rate Limiter to app state
+app.state.limiter = limiter
+
+# Add Rate Limit Exception Handler
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    """Custom handler for rate limit exceeded errors"""
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": "Zu viele Anfragen. Bitte warten Sie einen Moment.",
+            "retry_after": str(exc.detail)
+        }
+    )
 
 # CORS Middleware - Must be added BEFORE routes to handle preflight requests
 app.add_middleware(

@@ -25,7 +25,7 @@ async def get_current_user_id(
 ) -> UUID:
     """
     Extract user ID from JWT token.
-    Raises HTTPException if token is invalid.
+    Raises HTTPException if token is invalid or blacklisted.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -35,6 +35,16 @@ async def get_current_user_id(
 
     try:
         token = credentials.credentials
+
+        # Check if token is blacklisted (logout)
+        from app.api.v1.endpoints.auth import is_token_blacklisted
+        if is_token_blacklisted(token):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token wurde invalidiert. Bitte erneut anmelden.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,
