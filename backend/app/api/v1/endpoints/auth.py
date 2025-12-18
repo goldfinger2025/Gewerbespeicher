@@ -4,7 +4,7 @@ Login, Register, Token Refresh
 """
 
 from fastapi import APIRouter, HTTPException, Depends, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
@@ -26,13 +26,35 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ============ PYDANTIC MODELS ============
 
+def validate_password_strength(password: str) -> str:
+    """Validate password meets security requirements"""
+    import re
+    errors = []
+    if len(password) < 8:
+        errors.append("mindestens 8 Zeichen")
+    if not re.search(r"[A-Z]", password):
+        errors.append("mindestens einen Großbuchstaben")
+    if not re.search(r"[a-z]", password):
+        errors.append("mindestens einen Kleinbuchstaben")
+    if not re.search(r"\d", password):
+        errors.append("mindestens eine Ziffer")
+    if errors:
+        raise ValueError(f"Passwort benötigt: {', '.join(errors)}")
+    return password
+
+
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str
-    first_name: str
-    last_name: str
-    company_name: Optional[str] = None
-    phone: Optional[str] = None
+    password: str = Field(..., min_length=8, description="Mindestens 8 Zeichen, Groß-/Kleinbuchstaben und Ziffern")
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    company_name: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=20)
+
+    @field_validator("password")
+    @classmethod
+    def check_password_strength(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 class UserLogin(BaseModel):
@@ -285,7 +307,12 @@ async def update_current_user(
 
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=6)
-    new_password: str = Field(..., min_length=8, description="Mindestens 8 Zeichen")
+    new_password: str = Field(..., min_length=8, description="Mindestens 8 Zeichen, Groß-/Kleinbuchstaben und Ziffern")
+
+    @field_validator("new_password")
+    @classmethod
+    def check_new_password_strength(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 @router.post("/change-password")
