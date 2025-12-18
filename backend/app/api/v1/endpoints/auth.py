@@ -3,13 +3,17 @@ Authentication Endpoints
 Login, Register, Token Refresh
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from typing import Optional
+import logging
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.config import settings
 from app.database import get_db
@@ -17,11 +21,30 @@ from app.models.user import User
 from app.crud import user as user_crud
 from app.api.deps import get_current_user
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Rate limiter for auth endpoints - stricter limits for security
+limiter = Limiter(key_func=get_remote_address)
+
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Token blacklist for logout functionality
+# In production, this should use Redis for persistence and scalability
+_token_blacklist: set[str] = set()
+
+
+def is_token_blacklisted(token: str) -> bool:
+    """Check if a token is blacklisted"""
+    return token in _token_blacklist
+
+
+def blacklist_token(token: str) -> None:
+    """Add a token to the blacklist"""
+    _token_blacklist.add(token)
+    logger.info(f"Token blacklisted (total: {len(_token_blacklist)})")
 
 
 # ============ PYDANTIC MODELS ============
@@ -120,12 +143,16 @@ def create_refresh_token(data: dict) -> str:
 # ============ ENDPOINTS ============
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")  # Stricter rate limit for registration
 async def register(
+    request: Request,
     user_data: UserRegister,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Register a new user
+
+    Rate limited to 5 requests per minute per IP.
     """
     # Check if email already exists
     existing_user = await user_crud.get_user_by_email(db, user_data.email)
@@ -160,12 +187,16 @@ async def register(
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("10/minute")  # Stricter rate limit for login - prevents brute force
 async def login(
+    request: Request,
     credentials: UserLogin,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Login and receive JWT tokens
+
+    Rate limited to 10 requests per minute per IP to prevent brute force attacks.
     """
     # Get user by email
     user = await user_crud.get_user_by_email(db, credentials.email)
@@ -273,6 +304,36 @@ async def get_current_user_info(
     )
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
+
+
+@router.post("/logout")
+async def logout(
+    request: Request,
+    logout_request: LogoutRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Logout user and invalidate tokens.
+
+    Blacklists the current access token and optionally the refresh token.
+    """
+    # Get the access token from the Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        access_token = auth_header.split(" ")[1]
+        blacklist_token(access_token)
+
+    # Also blacklist refresh token if provided
+    if logout_request.refresh_token:
+        blacklist_token(logout_request.refresh_token)
+
+    logger.info(f"User {current_user.email} logged out")
+
+    return {"message": "Erfolgreich abgemeldet"}
+
+
 @router.patch("/me", response_model=UserResponse)
 async def update_current_user(
     first_name: Optional[str] = None,
@@ -354,8 +415,10 @@ class PasswordResetRequest(BaseModel):
 
 
 @router.post("/forgot-password")
+@limiter.limit("3/minute")  # Very strict rate limit for password reset
 async def request_password_reset(
-    request: PasswordResetRequest,
+    request: Request,
+    reset_request: PasswordResetRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -363,18 +426,17 @@ async def request_password_reset(
 
     Note: For security reasons, this endpoint always returns success
     regardless of whether the email exists in the database.
-    In production, this would send an email with a reset link.
+
+    Rate limited to 3 requests per minute per IP.
     """
-    import logging
-    logger = logging.getLogger(__name__)
 
     # Check if user exists (but don't reveal this to the client)
-    user = await user_crud.get_user_by_email(db, request.email)
+    user = await user_crud.get_user_by_email(db, reset_request.email)
 
     if user:
         # In production: Generate reset token and send email
         # For now, just log it
-        logger.info(f"Password reset requested for: {request.email}")
+        logger.info(f"Password reset requested for: {reset_request.email}")
         # TODO: Implement email sending with reset token
         # reset_token = create_reset_token({"sub": str(user.id)})
         # await email_service.send_password_reset(user.email, reset_token)
