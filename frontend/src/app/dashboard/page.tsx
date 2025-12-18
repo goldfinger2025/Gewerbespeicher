@@ -71,7 +71,7 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">
-            Willkommen zurück! 👋
+            Willkommen zurück
           </h1>
           <p className="text-slate-500 mt-1">
             Hier ist eine Übersicht Ihrer Projekte
