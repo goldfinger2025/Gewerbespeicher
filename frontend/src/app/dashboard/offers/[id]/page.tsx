@@ -148,11 +148,9 @@ export default function OfferDetailPage() {
           {/* Offer Preview */}
           <div className="card">
             <div className="prose max-w-none">
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: offer.offer_text?.replace(/\n/g, "<br/>") || "",
-                }}
-              />
+              <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
+                {offer.offer_text || "Kein Angebotstext vorhanden."}
+              </div>
             </div>
           </div>
 

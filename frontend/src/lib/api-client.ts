@@ -62,9 +62,18 @@ const api = {
     return response.data;
   },
 
-  logout: () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
+  logout: async () => {
+    try {
+      // Call server to invalidate token (add to blacklist)
+      await client.post("/auth/logout", {});
+    } catch {
+      // Ignore errors - we're logging out anyway
+    } finally {
+      // Always remove local token
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+      }
     }
   },
 
