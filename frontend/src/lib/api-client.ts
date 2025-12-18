@@ -251,6 +251,146 @@ const api = {
     const response = await client.get("/health");
     return response.data;
   },
+
+  // ============ GEWERBESPEICHER ============
+
+  // Peak-Shaving
+  analyzePeakShaving: async (data: {
+    load_profile_kw: number[];
+    battery_capacity_kwh: number;
+    battery_power_kw: number;
+    leistungspreis_eur_kw?: number;
+    leistungspreis_kategorie?: "niedrig" | "mittel" | "hoch" | "sehr_hoch" | "extrem";
+    interval_minutes?: number;
+  }) => {
+    const response = await client.post("/gewerbe/peak-shaving/analyze", data);
+    return response.data;
+  },
+
+  calculatePeakShavingEconomics: async (data: {
+    original_peak_kw: number;
+    target_peak_kw: number;
+    battery_capacity_kwh: number;
+    battery_power_kw: number;
+    leistungspreis_eur_kw?: number;
+    battery_cost_per_kwh?: number;
+  }) => {
+    const response = await client.post("/gewerbe/peak-shaving/economics", data);
+    return response.data;
+  },
+
+  getLeistungspreise: async () => {
+    const response = await client.get("/gewerbe/peak-shaving/leistungspreise");
+    return response.data;
+  },
+
+  // Compliance
+  generateComplianceChecklist: async (data: {
+    pv_kwp: number;
+    battery_kwh: number;
+    battery_power_kw: number;
+    jahresverbrauch_kwh: number;
+    bundesland?: string;
+    inbetriebnahme_datum?: string;
+    eeg_typ?: "teileinspeisung" | "volleinspeisung";
+  }) => {
+    const response = await client.post("/gewerbe/compliance/checklist", data);
+    return response.data;
+  },
+
+  getPara14aInfo: async (battery_power_kw: number) => {
+    const response = await client.get("/gewerbe/compliance/para-14a", {
+      params: { battery_power_kw },
+    });
+    return response.data;
+  },
+
+  getMastrInfo: async () => {
+    const response = await client.get("/gewerbe/compliance/mastr");
+    return response.data;
+  },
+
+  // EEG & Tarife
+  getEegVerguetung: async (pv_kwp: number, eeg_typ?: string) => {
+    const response = await client.get("/gewerbe/eeg/verguetung", {
+      params: { pv_kwp, eeg_typ },
+    });
+    return response.data;
+  },
+
+  getEegTarife: async () => {
+    const response = await client.get("/gewerbe/eeg/tarife");
+    return response.data;
+  },
+
+  // Förderung
+  getFoerderungUebersicht: async () => {
+    const response = await client.get("/gewerbe/foerderung/uebersicht");
+    return response.data;
+  },
+
+  getLandesfoerderung: async (bundesland: string) => {
+    const response = await client.get(`/gewerbe/foerderung/bundesland/${bundesland}`);
+    return response.data;
+  },
+
+  // Kosten
+  calculateInvestmentCosts: async (data: {
+    pv_kwp: number;
+    battery_kwh: number;
+    include_installation?: boolean;
+  }) => {
+    const response = await client.post("/gewerbe/kosten/investition", data);
+    return response.data;
+  },
+
+  getCostReference: async () => {
+    const response = await client.get("/gewerbe/kosten/referenz");
+    return response.data;
+  },
+
+  // Notstrom (Emergency Power)
+  analyzeEmergencyPower: async (data: {
+    critical_loads_kw: number[];
+    battery_capacity_kwh: number;
+    battery_power_kw: number;
+    required_backup_hours: number;
+    pv_kwp?: number;
+    load_profile_kw?: number[];
+  }) => {
+    const response = await client.post("/gewerbe/notstrom/analyze", data);
+    return response.data;
+  },
+
+  simulateBlackout: async (data: {
+    load_profile_kw: number[];
+    battery_capacity_kwh: number;
+    battery_power_kw: number;
+    critical_loads_kw: number;
+    pv_profile_kw?: number[];
+    outage_start_hour: number;
+    outage_duration_hours: number;
+    initial_soc?: number;
+  }) => {
+    const response = await client.post("/gewerbe/notstrom/simulate-blackout", data);
+    return response.data;
+  },
+
+  getNotstromInfo: async () => {
+    const response = await client.get("/gewerbe/notstrom/info");
+    return response.data;
+  },
+
+  // Netzentgelte (Grid Fees)
+  getNetzentgeltByPlz: async (plz: string) => {
+    const response = await client.get(`/gewerbe/netzentgelt/plz/${plz}`);
+    return response.data;
+  },
+
+  getNetzentgeltByNetzbetreiber: async (netzbetreiber_id: string) => {
+    const response = await client.get(`/gewerbe/netzentgelt/netzbetreiber/${netzbetreiber_id}`);
+    return response.data;
+  },
 };
 
 export default api;
