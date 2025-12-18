@@ -75,11 +75,15 @@ export interface SimulationRequest {
   run_async?: boolean;
 }
 
-// Simulation Response
+// Simulation Response (matches backend SimulationResponse)
 export interface SimulationResponse {
-  simulation_id: string;
+  id: string;
+  project_id: string;
+  simulation_type: string;
   status: SimulationStatus;
-  results?: Simulation;
+  results?: SimulationKPIs;
+  monthly_summary?: MonthlySummary[];
+  created_at: string;
 }
 
 // KPI Summary for Dashboard
