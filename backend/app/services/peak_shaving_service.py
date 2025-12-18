@@ -101,7 +101,6 @@ class PeakShavingService:
 
         # Berechne Benutzungsstunden
         hours_per_interval = interval_minutes / 60
-        total_hours = len(load_profile_kw) * hours_per_interval
         total_energy_kwh = float(np.sum(load_profile_kw) * hours_per_interval)
 
         benutzungsstunden = total_energy_kwh / max_load if max_load > 0 else 0

@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     integrations,
     tenants,
     api_keys,
+    gewerbe,
 )
 
 router = APIRouter()
@@ -84,4 +85,10 @@ router.include_router(
     integrations.router,
     prefix="/integrations",
     tags=["Integrations"]
+)
+
+router.include_router(
+    gewerbe.router,
+    prefix="/gewerbe",
+    tags=["Gewerbespeicher"]
 )

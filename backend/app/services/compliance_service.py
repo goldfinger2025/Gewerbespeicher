@@ -129,7 +129,7 @@ class ComplianceService:
         if pv_kwp > 25:
             checklist["vor_installation"].append({
                 "task": "Direktvermarktung prüfen",
-                "beschreibung": f"Ab 25 kWp ist Direktvermarktung zu prüfen (ab 100 kWp Pflicht)",
+                "beschreibung": "Ab 25 kWp ist Direktvermarktung zu prüfen (ab 100 kWp Pflicht)",
                 "pflicht": pv_kwp > 100,
                 "frist": "Vor Inbetriebnahme",
                 "hinweis": "Direktvermarktungsvertrag mit Aggregator/Direktvermarkter abschließen",
