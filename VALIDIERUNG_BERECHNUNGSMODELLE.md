@@ -8,11 +8,16 @@
 
 ## Zusammenfassung
 
-Die Anwendung wurde einer umfassenden Validierung unterzogen. Es wurden **2 kritische Fehler** identifiziert und korrigiert, sowie alle gesetzlichen Rahmenbedingungen verifiziert.
+Die Anwendung wurde einer umfassenden Validierung unterzogen. Es wurden **2 kritische Fehler** identifiziert und korrigiert, **3 Verbesserungen** implementiert, sowie alle gesetzlichen Rahmenbedingungen verifiziert.
 
 ### Korrigierte Fehler:
 1. ✅ **IRR-Berechnung** war fehlerhaft (einfache Rendite statt echte IRR)
 2. ✅ **CO2-Emissionsfaktor** war veraltet (0.380 → 0.363 kg CO2/kWh)
+
+### Verbesserungen:
+3. ✅ **Diskontierte Amortisation** hinzugefügt (finanziell präziser als einfache Amortisation)
+4. ✅ **EEG-Staffelung 40-100 kWp** in Angebotsservice korrigiert (korrekte anteilige Berechnung)
+5. ✅ **Konstanten-Konsistenz** - Investitionskosten aus zentraler Konfiguration
 
 ---
 
@@ -185,9 +190,11 @@ def calculate_irr(investment, annual_cf, years, degradation=0.005):
 
 ### 2.5 Amortisationszeit (Payback Period)
 
-**Status: ✅ KORREKT**
+**Status: ✅ KORREKT + ERWEITERT**
 
-**Formel (einfache Amortisation):**
+#### Einfache Amortisation (branchenüblich)
+
+**Formel:**
 ```
 Payback = Investition / Jährliche Ersparnis
 ```
@@ -198,6 +205,37 @@ payback_years = total_investment / annual_savings if annual_savings > 0 else 99
 ```
 
 ✅ **Korrekt für statische Amortisationsrechnung.**
+
+#### Diskontierte Amortisation (NEU - finanziell präziser)
+
+**Formel:**
+```
+Finde Jahr t, wo: Σ(k=1 bis t) [CF_k / (1+r)^k] ≥ Investition
+
+Wobei:
+- CF_k = Jährlicher Cashflow im Jahr k (mit Degradation)
+- r = Diskontierungszinssatz (3%)
+```
+
+**Code-Implementierung (pvlib_simulator.py):**
+```python
+def calculate_discounted_payback(investment, annual_cf, discount_rate, years, degradation=0.005):
+    cumulative_dcf = 0.0
+    for year in range(1, years + 1):
+        cf = annual_cf * ((1 - degradation) ** year)
+        dcf = cf / ((1 + discount_rate) ** year)
+        cumulative_dcf += dcf
+
+        if cumulative_dcf >= investment:
+            # Interpolation für genaueren Wert
+            previous_cumulative = cumulative_dcf - dcf
+            remaining = investment - previous_cumulative
+            fraction = remaining / dcf if dcf > 0 else 0
+            return year - 1 + fraction
+    return 99.0
+```
+
+✅ **Korrekt implementiert mit Interpolation für Sub-Jahres-Genauigkeit.**
 
 ---
 

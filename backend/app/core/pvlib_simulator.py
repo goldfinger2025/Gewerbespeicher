@@ -14,6 +14,7 @@ from pvlib import pvsystem, modelchain, location
 from pvlib.temperature import TEMPERATURE_MODEL_PARAMETERS
 
 from app.cache import RedisCache
+from app.config import INVESTMENT_COSTS_2025, SIMULATION_DEFAULTS
 
 logger = logging.getLogger(__name__)
 
@@ -492,25 +493,66 @@ class PVLibSimulator:
         # Annual savings
         annual_savings = cost_without_system - cost_with_system
 
-        # Investment costs (realistic German prices 2024)
-        pv_cost_per_kwp = 1100  # €/kWp including installation
-        battery_cost_per_kwh = 600  # €/kWh including BMS
-        fixed_costs = 2000  # Planning, permits, etc.
+        # Investment costs from centralized config (Stand: Dezember 2025)
+        # Use size-dependent pricing from INVESTMENT_COSTS_2025
+        if pv_peak_kw <= 30:
+            pv_cost_per_kwp = INVESTMENT_COSTS_2025["pv_cost_per_kwp"]["bis_30kwp"]
+        elif pv_peak_kw <= 100:
+            pv_cost_per_kwp = INVESTMENT_COSTS_2025["pv_cost_per_kwp"]["30_100kwp"]
+        elif pv_peak_kw <= 500:
+            pv_cost_per_kwp = INVESTMENT_COSTS_2025["pv_cost_per_kwp"]["100_500kwp"]
+        else:
+            pv_cost_per_kwp = INVESTMENT_COSTS_2025["pv_cost_per_kwp"]["ueber_500kwp"]
+
+        if battery_kwh <= 30:
+            battery_cost_per_kwh = INVESTMENT_COSTS_2025["battery_cost_per_kwh"]["bis_30kwh"]
+        elif battery_kwh <= 100:
+            battery_cost_per_kwh = INVESTMENT_COSTS_2025["battery_cost_per_kwh"]["30_100kwh"]
+        elif battery_kwh <= 500:
+            battery_cost_per_kwh = INVESTMENT_COSTS_2025["battery_cost_per_kwh"]["100_500kwh"]
+        else:
+            battery_cost_per_kwh = INVESTMENT_COSTS_2025["battery_cost_per_kwh"]["ueber_500kwh"]
+
+        fixed_costs = sum(INVESTMENT_COSTS_2025["fixed_costs"].values())
 
         pv_cost = pv_peak_kw * pv_cost_per_kwp
         battery_cost = battery_kwh * battery_cost_per_kwh
         total_investment = pv_cost + battery_cost + fixed_costs
 
-        # Payback period
+        # Simple payback period (branchenüblich)
         payback_years = total_investment / annual_savings if annual_savings > 0 else 99
 
-        # NPV calculation (20 years, 3% discount rate)
-        discount_rate = 0.03
-        project_lifetime = 20
+        # Discounted payback period (finanziell präziser)
+        # Findet das Jahr, in dem kumulierte abgezinste Cashflows die Investition übersteigen
+        def calculate_discounted_payback(investment: float, annual_cf: float,
+                                         discount_rate: float, years: int,
+                                         degradation: float = 0.005) -> float:
+            if investment <= 0 or annual_cf <= 0:
+                return 99.0
+
+            cumulative_dcf = 0.0
+            for year in range(1, years + 1):
+                cf = annual_cf * ((1 - degradation) ** year)
+                dcf = cf / ((1 + discount_rate) ** year)
+                cumulative_dcf += dcf
+
+                if cumulative_dcf >= investment:
+                    # Interpolation für genaueren Wert
+                    previous_cumulative = cumulative_dcf - dcf
+                    remaining = investment - previous_cumulative
+                    fraction = remaining / dcf if dcf > 0 else 0
+                    return year - 1 + fraction
+
+            return 99.0  # Nicht innerhalb der Projektlaufzeit amortisiert
+
+        # NPV calculation using centralized parameters
+        discount_rate = SIMULATION_DEFAULTS["discount_rate"]
+        project_lifetime = SIMULATION_DEFAULTS["project_lifetime_years"]
+        degradation_rate = SIMULATION_DEFAULTS["pv_degradation_jahr"]
+
         npv = -total_investment
         for year_i in range(1, project_lifetime + 1):
-            # Assume 0.5% degradation per year
-            degradation_factor = (1 - 0.005) ** year_i
+            degradation_factor = (1 - degradation_rate) ** year_i
             yearly_savings = annual_savings * degradation_factor
             npv += yearly_savings / ((1 + discount_rate) ** year_i)
 
@@ -547,7 +589,12 @@ class PVLibSimulator:
 
             return rate * 100  # Return as percentage
 
-        irr = calculate_irr(total_investment, annual_savings, project_lifetime, 0.005)
+        irr = calculate_irr(total_investment, annual_savings, project_lifetime, degradation_rate)
+
+        # Discounted payback calculation
+        discounted_payback = calculate_discounted_payback(
+            total_investment, annual_savings, discount_rate, project_lifetime, degradation_rate
+        )
 
         # Total savings over lifetime
         total_savings_lifetime = annual_savings * project_lifetime * 0.95  # Account for degradation
@@ -580,6 +627,7 @@ class PVLibSimulator:
             "annual_savings_eur": round(annual_savings, 2),
             "total_savings_eur": round(total_savings_lifetime, 2),
             "payback_period_years": round(min(payback_years, 99), 1),
+            "discounted_payback_years": round(min(discounted_payback, 99), 1),
             "npv_eur": round(npv, 2),
             "irr_percent": round(irr, 1),
             "total_investment_eur": round(total_investment, 2),

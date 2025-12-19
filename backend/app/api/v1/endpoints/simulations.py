@@ -44,6 +44,7 @@ class SimulationKPIs(BaseModel):
     annual_savings_eur: float
     total_savings_eur: Optional[float] = None
     payback_period_years: float
+    discounted_payback_years: Optional[float] = None  # Diskontierte Amortisation (finanziell präziser)
     npv_eur: Optional[float] = None
     irr_percent: Optional[float] = None
     battery_cycles: float

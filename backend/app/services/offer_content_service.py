@@ -311,13 +311,38 @@ def generate_subsidy_info(
             "url": land_prog.get("url"),
         })
 
-    # EEG-Vergütung
-    eeg_rate = EEG_FEED_IN_TARIFFS["teileinspeisung"]["bis_10kwp"] if pv_kw <= 10 else EEG_FEED_IN_TARIFFS["teileinspeisung"]["10_40kwp"]
+    # EEG-Vergütung (gestaffelt nach Anlagengröße, gewichteter Durchschnitt)
+    tarife = EEG_FEED_IN_TARIFFS["teileinspeisung"]
+    if pv_kw <= 10:
+        eeg_rate = tarife["bis_10kwp"]
+        eeg_stufe = "bis 10 kWp"
+    elif pv_kw <= 40:
+        # Anteilig: 10 kWp zum höheren Satz, Rest zum niedrigeren
+        anteil_10 = 10 / pv_kw
+        anteil_40 = (pv_kw - 10) / pv_kw
+        eeg_rate = tarife["bis_10kwp"] * anteil_10 + tarife["10_40kwp"] * anteil_40
+        eeg_stufe = "10-40 kWp (anteilig)"
+    elif pv_kw <= 100:
+        # Anteilig: 10 kWp + 30 kWp + Rest
+        anteil_10 = 10 / pv_kw
+        anteil_40 = 30 / pv_kw
+        anteil_100 = (pv_kw - 40) / pv_kw
+        eeg_rate = (tarife["bis_10kwp"] * anteil_10 +
+                    tarife["10_40kwp"] * anteil_40 +
+                    tarife["40_100kwp"] * anteil_100)
+        eeg_stufe = "40-100 kWp (anteilig)"
+    else:
+        # Über 100 kWp - Direktvermarktung empfohlen
+        eeg_rate = tarife.get("ueber_100kwp", 0.068)
+        eeg_stufe = "über 100 kWp (Direktvermarktung empfohlen)"
+
     subsidies["hinweise"].append({
         "typ": "EEG-Einspeisevergütung",
         "rate": f"{eeg_rate * 100:.2f} ct/kWh",
+        "stufe": eeg_stufe,
         "laufzeit": "20 Jahre ab Inbetriebnahme",
         "stand": EEG_FEED_IN_TARIFFS["stand"],
+        "degression": f"-{EEG_FEED_IN_TARIFFS['degression_prozent'] * 100:.0f}% halbjährlich",
     })
 
     return subsidies

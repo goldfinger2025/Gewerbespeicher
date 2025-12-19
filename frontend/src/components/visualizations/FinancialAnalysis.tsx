@@ -51,9 +51,10 @@ export function FinancialAnalysis({
   // Generate 25-year cashflow projection
   const cashflowData = useMemo(() => {
     const years = Array.from({ length: 26 }, (_, i) => i);
+    // Parameters synchronized with backend (config.py SIMULATION_DEFAULTS)
     const discountRate = 0.03; // 3% discount rate
     const degradationRate = 0.005; // 0.5% annual degradation
-    const electricityPriceIncrease = 0.03; // 3% annual price increase
+    const electricityPriceIncrease = 0.02; // 2% annual price increase (konservativ)
 
     let cumulativeSavings = 0;
     let cumulativeNPV = 0;
