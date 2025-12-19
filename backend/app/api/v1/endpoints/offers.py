@@ -24,6 +24,7 @@ from app.api.deps import get_current_user
 from app.services.claude_service import get_claude_service
 from app.services.pdf_service import pdf_service
 from app.services.email_service import email_service
+from app.services.offer_content_service import generate_complete_offer_content
 
 logger = logging.getLogger(__name__)
 
@@ -186,12 +187,30 @@ async def create_offer(
         # Fallback to basic text if Claude fails
         offer_text = _generate_fallback_offer_text(project_data, results)
 
-    # Create offer in database
+    # Generate complete offer content (pricing, specs, warranty, subsidies)
+    complete_content = generate_complete_offer_content(
+        pv_kw=project.pv_peak_power_kw or 0,
+        battery_kwh=project.battery_capacity_kwh or 0,
+        battery_power_kw=project.battery_power_kw,
+        simulation_results=results,
+        project_data=project_data,
+        bundesland=None,  # Can be extracted from postal_code in future
+        discount_percent=0.0,
+    )
+
+    # Create offer in database with complete content
     offer = await offer_crud.create_offer(
         db=db,
         simulation_id=simulation.id,
         project_id=project.id,
         offer_text=offer_text,
+        pricing_breakdown=complete_content["pricing_breakdown"],
+        technical_specs=complete_content["technical_specs"],
+        warranty_info=complete_content["warranty_info"],
+        subsidy_info=complete_content["subsidy_info"],
+        payment_terms=complete_content["payment_terms"],
+        service_package=complete_content["service_packages"],
+        terms_reference=complete_content["terms_reference"],
     )
 
     # Generate PDF if requested

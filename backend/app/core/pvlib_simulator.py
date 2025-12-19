@@ -514,8 +514,40 @@ class PVLibSimulator:
             yearly_savings = annual_savings * degradation_factor
             npv += yearly_savings / ((1 + discount_rate) ** year_i)
 
-        # IRR approximation
-        irr = (annual_savings / total_investment) * 100 if total_investment > 0 else 0
+        # IRR calculation using Newton-Raphson approximation
+        # IRR is the discount rate where NPV = 0
+        # Simplified IRR approximation based on cash flows
+        def calculate_irr(investment: float, annual_cf: float, years: int, degradation: float = 0.005) -> float:
+            """Calculate IRR using iterative Newton-Raphson method"""
+            if investment <= 0 or annual_cf <= 0:
+                return 0.0
+
+            # Initial guess based on simple payback
+            rate = annual_cf / investment
+
+            for _ in range(50):  # Max iterations
+                npv_val = -investment
+                npv_derivative = 0
+
+                for year in range(1, years + 1):
+                    cf = annual_cf * ((1 - degradation) ** year)
+                    discount = (1 + rate) ** year
+                    npv_val += cf / discount
+                    npv_derivative -= year * cf / ((1 + rate) ** (year + 1))
+
+                if abs(npv_derivative) < 1e-10:
+                    break
+
+                rate_new = rate - npv_val / npv_derivative
+
+                if abs(rate_new - rate) < 1e-6:
+                    break
+
+                rate = max(0.001, min(0.5, rate_new))  # Clamp between 0.1% and 50%
+
+            return rate * 100  # Return as percentage
+
+        irr = calculate_irr(total_investment, annual_savings, project_lifetime, 0.005)
 
         # Total savings over lifetime
         total_savings_lifetime = annual_savings * project_lifetime * 0.95  # Account for degradation

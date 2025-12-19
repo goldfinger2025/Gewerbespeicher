@@ -31,6 +31,13 @@ class Offer(Base):
     components_bom = Column(JSONB)  # Bill of Materials
     pricing_breakdown = Column(JSONB)
 
+    # Professional Offer Details (für vollständige Angebote)
+    warranty_info = Column(JSONB)  # Garantieinformationen
+    subsidy_info = Column(JSONB)  # Förderinformationen (KfW, Länder)
+    payment_terms = Column(Text)  # Zahlungsbedingungen
+    terms_reference = Column(String(255))  # AGB-Verweis
+    service_package = Column(JSONB)  # Wartungs-/Service-Pakete
+
     # E-Signature
     signature_link = Column(String(500))
     is_signed = Column(Boolean, default=False)
