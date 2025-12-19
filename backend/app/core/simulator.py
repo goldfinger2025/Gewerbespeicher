@@ -95,6 +95,17 @@ class PVStorageSimulator:
         
         # Battery cycles
         battery_cycles = float(battery_discharge.sum() / battery_kwh) if battery_kwh > 0 else 0
+
+        # Betriebsstunden: Stunden mit Lade- oder Entladeaktivität
+        battery_charging_hours = int(np.sum(battery_charge > 0))
+        battery_discharging_hours = int(np.sum(battery_discharge > 0))
+        battery_operating_hours = battery_charging_hours + battery_discharging_hours
+
+        # Volllaststunden
+        total_battery_discharge = float(battery_discharge.sum())
+        pv_full_load_hours = total_pv_generation / pv_peak_kw if pv_peak_kw > 0 else 0
+        battery_full_load_hours = total_battery_discharge / battery_power_kw if battery_power_kw > 0 else 0
+        battery_utilization_percent = (battery_operating_hours / hours) * 100
         
         # ============ 5. FINANCIAL CALCULATIONS ============
         
@@ -131,6 +142,13 @@ class PVStorageSimulator:
             "payback_period_years": round(payback_years, 1),
             "battery_cycles": round(battery_cycles, 1),
             "total_investment_eur": round(total_investment, 2),
+            # Neue Kennzahlen: Betriebsstunden und Volllaststunden
+            "battery_charging_hours": battery_charging_hours,
+            "battery_discharging_hours": battery_discharging_hours,
+            "battery_operating_hours": battery_operating_hours,
+            "battery_full_load_hours": round(battery_full_load_hours, 1),
+            "battery_utilization_percent": round(battery_utilization_percent, 1),
+            "pv_full_load_hours": round(pv_full_load_hours, 1),
         }
     
     def _generate_pv_output(

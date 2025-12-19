@@ -638,10 +638,18 @@ export default function PlannerPage() {
               {resultsView === "battery" && (
                 <BatteryInsights
                   batteryCapacity={project?.battery_capacity_kwh || 0}
+                  batteryPowerKw={project?.battery_power_kw || (project?.battery_capacity_kwh || 0) * 0.5}
                   batteryCycles={simulation.results?.battery_cycles || 0}
                   selfConsumption={simulation.results?.self_consumption_kwh || 0}
                   pvGeneration={simulation.results?.pv_generation_kwh || 0}
+                  pvPeakKw={project?.pv_peak_power_kw || 0}
                   annualSavings={simulation.results?.annual_savings_eur || 0}
+                  batteryChargingHours={simulation.results?.battery_charging_hours}
+                  batteryDischargingHours={simulation.results?.battery_discharging_hours}
+                  batteryOperatingHours={simulation.results?.battery_operating_hours}
+                  batteryFullLoadHours={simulation.results?.battery_full_load_hours}
+                  batteryUtilizationPercent={simulation.results?.battery_utilization_percent}
+                  pvFullLoadHours={simulation.results?.pv_full_load_hours}
                 />
               )}
 

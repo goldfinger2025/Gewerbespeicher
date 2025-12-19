@@ -19,6 +19,14 @@ export interface Simulation {
   self_consumption_ratio_percent: number;
   pv_coverage_percent: number;
 
+  // Betriebsstunden und Volllaststunden
+  battery_charging_hours?: number;
+  battery_discharging_hours?: number;
+  battery_operating_hours?: number;
+  battery_full_load_hours?: number;
+  battery_utilization_percent?: number;
+  pv_full_load_hours?: number;
+
   // Financial Results (30-year horizon)
   annual_savings_eur: number;
   total_savings_eur: number;
@@ -94,6 +102,13 @@ export interface SimulationKPIs {
   self_consumption_ratio_percent: number;
   pv_generation_kwh: number;
   battery_cycles: number;
+  // Neue Kennzahlen: Betriebsstunden und Volllaststunden
+  battery_charging_hours?: number;
+  battery_discharging_hours?: number;
+  battery_operating_hours?: number;
+  battery_full_load_hours?: number;
+  battery_utilization_percent?: number;
+  pv_full_load_hours?: number;
 }
 
 // Phase 2: Scenario Comparison Types

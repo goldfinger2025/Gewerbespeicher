@@ -273,7 +273,31 @@ def calculate_discounted_payback(investment, annual_cf, discount_rate, years, de
 - Single-Direction: √(Round-Trip) für symmetrische Verluste
 - Beide Simulatoren (`simulator.py`, `pvlib_simulator.py`) nutzen dieselben Parameter
 
-### 3.3 CO2-Emissionsfaktor
+### 3.3 Volllaststunden und Betriebsstunden
+
+**Status: ✅ IMPLEMENTIERT (Dezember 2025)**
+
+| Kennzahl | Formel | Beschreibung |
+|----------|--------|--------------|
+| PV-Volllaststunden | `pv_generation_kwh / pv_peak_kw` | Äquivalente Stunden bei Nennleistung für Jahresertrag |
+| Batterie-Volllaststunden | `battery_discharge_kwh / battery_power_kw` | Entladeenergie / Nennleistung |
+| Batterie-Ladestunden | Σ(Stunden mit Ladung > 0) | Tatsächliche Stunden mit Ladeaktivität |
+| Batterie-Entladestunden | Σ(Stunden mit Entladung > 0) | Tatsächliche Stunden mit Entladeaktivität |
+| Batterie-Betriebsstunden | Ladestunden + Entladestunden | Gesamte aktive Betriebszeit |
+| Batterie-Nutzungsgrad | `Betriebsstunden / 8760 × 100` | Anteil der Jahresstunden mit Aktivität |
+
+**Typische Werte (Gewerbespeicher):**
+- PV-Volllaststunden: 900-1.100 h/Jahr (Deutschland)
+- Batterie-Volllaststunden: 500-800 h/Jahr (abhängig von Zyklen und C-Rate)
+- Batterie-Betriebsstunden: 2.000-4.000 h/Jahr
+- Batterie-Nutzungsgrad: 25-45%
+
+**Implementierung:**
+- `pvlib_simulator.py`: Stundenweise Zählung im Simulationsloop
+- `simulator.py`: Aggregation über numpy-Arrays
+- Frontend: Anzeige in BatteryInsights.tsx mit Fallback-Berechnung
+
+### 3.4 CO2-Emissionsfaktor
 
 **Status: ✅ KORRIGIERT**
 

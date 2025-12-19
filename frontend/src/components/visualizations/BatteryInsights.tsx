@@ -18,18 +18,35 @@ import { Battery, BatteryCharging, Zap, RefreshCw, TrendingUp, AlertTriangle } f
 
 interface BatteryInsightsProps {
   batteryCapacity: number;       // kWh
+  batteryPowerKw: number;        // kW Nennleistung
   batteryCycles: number;         // Zyklen pro Jahr
   selfConsumption: number;       // kWh/Jahr Eigenverbrauch
   pvGeneration: number;          // kWh/Jahr PV-Erzeugung
+  pvPeakKw: number;              // kWp Nennleistung
   annualSavings: number;         // EUR/Jahr
+  // Neue Kennzahlen
+  batteryChargingHours?: number;
+  batteryDischargingHours?: number;
+  batteryOperatingHours?: number;
+  batteryFullLoadHours?: number;
+  batteryUtilizationPercent?: number;
+  pvFullLoadHours?: number;
 }
 
 export function BatteryInsights({
   batteryCapacity,
+  batteryPowerKw,
   batteryCycles,
   selfConsumption,
   pvGeneration,
+  pvPeakKw,
   annualSavings,
+  batteryChargingHours,
+  batteryDischargingHours,
+  batteryOperatingHours,
+  batteryFullLoadHours,
+  batteryUtilizationPercent,
+  pvFullLoadHours,
 }: BatteryInsightsProps) {
   // Generate synthetic daily SOC pattern (typical summer day)
   const dailySOCData = useMemo(() => {
@@ -96,7 +113,13 @@ export function BatteryInsights({
     const yearlyDegradation = (totalCycles / ratedCycles) * 100;
     const estimatedLifeYears = Math.round(ratedCycles / totalCycles);
     const dailyAvgCycles = totalCycles / 365;
-    const utilizationRate = (dailyAvgCycles / 1.5) * 100; // 1.5 cycles/day = 100%
+
+    // Nutze berechnete Werte wenn vorhanden, sonst Fallback
+    const utilizationRate = batteryUtilizationPercent ?? (dailyAvgCycles / 1.5) * 100;
+    const fullLoadHours = batteryFullLoadHours ?? (totalCycles * batteryCapacity / (batteryPowerKw || 1));
+    const operatingHours = batteryOperatingHours ?? Math.round(fullLoadHours * 1.5);
+    const chargingHours = batteryChargingHours ?? Math.round(operatingHours * 0.45);
+    const dischargingHours = batteryDischargingHours ?? Math.round(operatingHours * 0.55);
 
     return {
       yearlyDegradation: Math.round(yearlyDegradation * 10) / 10,
@@ -104,8 +127,16 @@ export function BatteryInsights({
       dailyAvgCycles: Math.round(dailyAvgCycles * 100) / 100,
       utilizationRate: Math.min(100, Math.round(utilizationRate)),
       savingsPerCycle: Math.round((annualSavings / totalCycles) * 100) / 100,
+      // Neue Kennzahlen
+      fullLoadHours: Math.round(fullLoadHours),
+      operatingHours: Math.round(operatingHours),
+      chargingHours: Math.round(chargingHours),
+      dischargingHours: Math.round(dischargingHours),
+      pvFullLoadHours: pvFullLoadHours ?? Math.round(pvGeneration / (pvPeakKw || 1)),
     };
-  }, [batteryCycles, annualSavings]);
+  }, [batteryCycles, annualSavings, batteryCapacity, batteryPowerKw, pvGeneration, pvPeakKw,
+      batteryUtilizationPercent, batteryFullLoadHours, batteryOperatingHours,
+      batteryChargingHours, batteryDischargingHours, pvFullLoadHours]);
 
   const formatNumber = (n: number) =>
     n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
@@ -255,6 +286,52 @@ export function BatteryInsights({
               <Bar dataKey="teilzyklen" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Volllaststunden und Betriebsstunden */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+        <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+          <Zap className="w-5 h-5 text-amber-500" />
+          Volllaststunden & Betriebsstunden
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-amber-50 rounded-lg p-4">
+            <p className="text-sm text-slate-600">PV-Volllaststunden</p>
+            <p className="text-2xl font-bold text-amber-700">{formatNumber(batteryMetrics.pvFullLoadHours)} h</p>
+            <p className="text-xs text-slate-500">kWh/kWp (Jahresertrag)</p>
+          </div>
+          <div className="bg-blue-50 rounded-lg p-4">
+            <p className="text-sm text-slate-600">Batterie-Volllaststunden</p>
+            <p className="text-2xl font-bold text-blue-700">{formatNumber(batteryMetrics.fullLoadHours)} h</p>
+            <p className="text-xs text-slate-500">bei Nennleistung</p>
+          </div>
+          <div className="bg-emerald-50 rounded-lg p-4">
+            <p className="text-sm text-slate-600">Betriebsstunden gesamt</p>
+            <p className="text-2xl font-bold text-emerald-700">{formatNumber(batteryMetrics.operatingHours)} h</p>
+            <p className="text-xs text-slate-500">Laden + Entladen</p>
+          </div>
+          <div className="bg-violet-50 rounded-lg p-4">
+            <p className="text-sm text-slate-600">Nutzungsgrad</p>
+            <p className="text-2xl font-bold text-violet-700">{batteryMetrics.utilizationRate}%</p>
+            <p className="text-xs text-slate-500">von 8.760 h/Jahr</p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <div>
+              <p className="text-sm font-medium text-slate-700">Ladestunden</p>
+              <p className="text-lg font-bold text-slate-800">{formatNumber(batteryMetrics.chargingHours)} h/Jahr</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+            <div>
+              <p className="text-sm font-medium text-slate-700">Entladestunden</p>
+              <p className="text-lg font-bold text-slate-800">{formatNumber(batteryMetrics.dischargingHours)} h/Jahr</p>
+            </div>
+          </div>
         </div>
       </div>
 
