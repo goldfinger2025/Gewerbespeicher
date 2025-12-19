@@ -273,7 +273,36 @@ def calculate_discounted_payback(investment, annual_cf, discount_rate, years, de
 - Single-Direction: √(Round-Trip) für symmetrische Verluste
 - Beide Simulatoren (`simulator.py`, `pvlib_simulator.py`) nutzen dieselben Parameter
 
-### 3.3 CO2-Emissionsfaktor
+### 3.3 Volllaststunden und Betriebsstunden
+
+**Status: ✅ IMPLEMENTIERT (Dezember 2025)**
+
+| Kennzahl | Formel | Beschreibung | Referenz |
+|----------|--------|--------------|----------|
+| PV-Volllaststunden | `pv_generation_kwh / pv_peak_kw` | Äquivalente Stunden bei Nennleistung | VDI 4655, IEA PVPS |
+| Batterie-Volllaststunden | `battery_discharge_kwh / battery_power_kw` | Entladeenergie / Nennleistung | VDI 4655 |
+| Batterie-Ladestunden | Σ(Stunden mit Ladung > 0) | Tatsächliche Stunden mit Ladeaktivität | DIN EN 15316 |
+| Batterie-Entladestunden | Σ(Stunden mit Entladung > 0) | Tatsächliche Stunden mit Entladeaktivität | DIN EN 15316 |
+| Batterie-Betriebsstunden | Ladestunden + Entladestunden | Gesamte aktive Betriebszeit | DIN EN 15316 |
+| Batterie-Nutzungsgrad | `Betriebsstunden / 8760 × 100` | Anteil der Jahresstunden mit Aktivität | - |
+| Batterie-Kapazitätsfaktor | `Volllaststunden / 8760 × 100` | Intensität der Auslastung | IEEE 762 |
+
+**Unterschied Nutzungsgrad vs. Kapazitätsfaktor:**
+- **Nutzungsgrad**: Wie oft ist das System aktiv? (zeitbasiert)
+- **Kapazitätsfaktor**: Wie intensiv wird das System genutzt? (energiebasiert)
+
+**Typische Werte (Gewerbespeicher):**
+- PV-Volllaststunden: 900-1.100 h/Jahr (Deutschland)
+- Batterie-Volllaststunden: 500-800 h/Jahr (abhängig von Zyklen und C-Rate)
+- Batterie-Betriebsstunden: 2.000-4.000 h/Jahr
+- Batterie-Nutzungsgrad: 25-45%
+
+**Implementierung:**
+- `pvlib_simulator.py`: Stundenweise Zählung im Simulationsloop
+- `simulator.py`: Aggregation über numpy-Arrays
+- Frontend: Anzeige in BatteryInsights.tsx mit Fallback-Berechnung
+
+### 3.4 CO2-Emissionsfaktor
 
 **Status: ✅ KORRIGIERT**
 

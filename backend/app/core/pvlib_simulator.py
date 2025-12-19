@@ -446,7 +446,10 @@ class PVLibSimulator:
             battery_discharge,
             grid_import,
             grid_export,
-            self_consumption
+            self_consumption,
+            battery_charging_hours,
+            battery_discharging_hours,
+            battery_operating_hours
         ) = self._simulate_battery(
             pv_output=pv_output.values,
             load_profile=load_profile.values,
@@ -480,6 +483,23 @@ class PVLibSimulator:
 
         # Battery cycles
         battery_cycles = total_battery_discharge / battery_kwh if battery_kwh > 0 else 0
+
+        # ============ VOLLLASTSTUNDEN (Full Load Hours) ============
+        # PV-Volllaststunden: Stunden bei Nennleistung für gleiche Energiemenge
+        # Definition: Jahresenergie / Nennleistung (VDI 4655, IEA PVPS)
+        pv_full_load_hours = total_pv_generation / pv_peak_kw if pv_peak_kw > 0 else 0
+
+        # Batterie-Volllaststunden (Entladung): Entladeenergie / Nennleistung
+        # Hinweis: Basiert auf Entladeenergie (üblich für Wirtschaftlichkeitsbetrachtungen)
+        battery_full_load_hours = total_battery_discharge / battery_power_kw if battery_power_kw > 0 else 0
+
+        # Batterie-Nutzungsgrad: Betriebsstunden / Gesamtstunden Jahr (8760h)
+        # Definition: Anteil der Zeit mit aktiver Lade-/Entladeaktivität
+        battery_utilization_percent = (battery_operating_hours / 8760) * 100 if battery_operating_hours > 0 else 0
+
+        # Batterie-Kapazitätsfaktor: Volllaststunden / 8760
+        # Definition: Verhältnis tatsächlicher Energiedurchsatz zu theoretisch maximalem
+        battery_capacity_factor_percent = (battery_full_load_hours / 8760) * 100
 
         # ============ 6. FINANCIAL CALCULATIONS ============
         # Costs without system
@@ -622,6 +642,15 @@ class PVLibSimulator:
             # Battery
             "battery_cycles": round(battery_cycles, 1),
             "battery_throughput_kwh": round(total_battery_discharge, 2),
+            "battery_charging_hours": battery_charging_hours,
+            "battery_discharging_hours": battery_discharging_hours,
+            "battery_operating_hours": battery_operating_hours,
+            "battery_full_load_hours": round(battery_full_load_hours, 1),
+            "battery_utilization_percent": round(battery_utilization_percent, 1),
+            "battery_capacity_factor_percent": round(battery_capacity_factor_percent, 2),
+
+            # PV
+            "pv_full_load_hours": round(pv_full_load_hours, 1),
 
             # Financial
             "annual_savings_eur": round(annual_savings, 2),
@@ -675,12 +704,13 @@ class PVLibSimulator:
         load_profile: np.ndarray,
         battery_kwh: float,
         battery_power_kw: float
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int, int]:
         """
         Simulate battery operation with self-consumption optimization
 
         Returns:
-            Tuple of (soc, charge, discharge, grid_import, grid_export, self_consumption)
+            Tuple of (soc, charge, discharge, grid_import, grid_export, self_consumption,
+                      charging_hours, discharging_hours, operating_hours)
         """
         hours = len(pv_output)
 
@@ -707,6 +737,10 @@ class PVLibSimulator:
         charge_efficiency = single_efficiency
         discharge_efficiency = single_efficiency
 
+        # Betriebsstunden-Zähler
+        charging_hours = 0
+        discharging_hours = 0
+
         for hour in range(hours):
             pv = pv_output[hour]
             load = load_profile[hour]
@@ -730,6 +764,10 @@ class PVLibSimulator:
                 current_soc += charge_possible * charge_efficiency
                 grid_export[hour] = surplus - charge_possible
 
+                # Zähle Ladestunde wenn tatsächlich geladen wurde
+                if charge_possible > 0:
+                    charging_hours += 1
+
             elif deficit > 0:
                 # Deficit: discharge battery, then import
                 discharge_possible = min(
@@ -745,7 +783,14 @@ class PVLibSimulator:
                 # Add battery discharge to self-consumption
                 self_consumption[hour] += discharge_possible
 
+                # Zähle Entladestunde wenn tatsächlich entladen wurde
+                if discharge_possible > 0:
+                    discharging_hours += 1
+
             battery_soc[hour] = current_soc
+
+        # Gesamte Betriebsstunden (Laden ODER Entladen)
+        operating_hours = charging_hours + discharging_hours
 
         return (
             battery_soc,
@@ -753,7 +798,10 @@ class PVLibSimulator:
             battery_discharge,
             grid_import,
             grid_export,
-            self_consumption
+            self_consumption,
+            charging_hours,
+            discharging_hours,
+            operating_hours
         )
 
     def _calculate_monthly_summary(
