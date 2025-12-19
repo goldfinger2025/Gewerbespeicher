@@ -303,7 +303,7 @@ SIMULATION_DEFAULTS = {
     "project_lifetime_years": 20,     # Für NPV-Berechnung
     "discount_rate": 0.03,            # 3% für NPV
     "inflation_rate": 0.02,           # 2% Strompreissteigerung
-    "co2_emission_factor": 0.380,     # kg CO2/kWh (Deutschland 2024)
+    "co2_emission_factor": 0.363,     # kg CO2/kWh (Deutschland 2024, Quelle: Umweltbundesamt)
 }
 
 

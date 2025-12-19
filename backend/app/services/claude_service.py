@@ -110,7 +110,7 @@ class ClaudeService:
 
         # Erweiterte KPIs berechnen
         pv_generation = simulation.get('pv_generation_kwh', 0)
-        co2_savings_tons = pv_generation * 0.4 / 1000
+        co2_savings_tons = pv_generation * 0.363 / 1000  # kg CO2/kWh (UBA 2024)
         annual_savings = simulation.get('annual_savings_eur', 0)
         total_investment = simulation.get('total_investment_eur', 0)
         if total_investment == 0:
@@ -706,7 +706,7 @@ Fokus: Wirtschaftliche Vorteile und Fakten aus der Simulation"""
 - Eigenverbrauch: {simulation.get('self_consumption_ratio_percent', 0):.0f}%
 - Jährliche Einsparung: {simulation.get('annual_savings_eur', 0):,.0f} €
 - Amortisation: {simulation.get('payback_period_years', 0):.1f} Jahre
-- CO2-Einsparung: {simulation.get('pv_generation_kwh', 0) * 0.4 / 1000:.1f} t/Jahr
+- CO2-Einsparung: {simulation.get('pv_generation_kwh', 0) * 0.363 / 1000:.1f} t/Jahr
 {monthly_text}
 
 ## AUFGABE
@@ -761,7 +761,7 @@ Erstelle modularen Angebotstext als JSON:
         autonomy = simulation.get('autonomy_degree_percent', 0)
         savings = simulation.get('annual_savings_eur', 0)
         payback = simulation.get('payback_period_years', 8)
-        co2_tons = pv_generation * 0.4 / 1000
+        co2_tons = pv_generation * 0.363 / 1000  # kg CO2/kWh (UBA 2024)
 
         total_investment = pv_kw * 1100 + battery_kwh * 600 + 2000
 
@@ -953,7 +953,7 @@ Ihr EWS Energieberatungs-Team
         )
         payback = total_cost / annual_savings if annual_savings > 0 else 99
         autonomy = ((consumption - grid_import) / consumption * 100) if consumption > 0 else 0
-        co2_savings = pv_generation * 0.4 / 1000  # Tonnen
+        co2_savings = pv_generation * 0.363 / 1000  # Tonnen (UBA 2024)
 
         return {
             "recommended_pv_kw": round(recommended_pv, 1),
@@ -1019,7 +1019,7 @@ Ihr EWS Energieberatungs-Team
                     "annual_savings_eur": savings,
                     "payback_years": payback,
                     "npv_20y_eur": round(savings * 15 - base_investment, 0),
-                    "co2_savings_tons": round(pv * 0.95 * 0.4, 1),
+                    "co2_savings_tons": round(pv * 0.95 * 0.363, 1),
                     "highlight": "Ausgewogenes Verhältnis"
                 },
                 {
@@ -1032,7 +1032,7 @@ Ihr EWS Energieberatungs-Team
                     "annual_savings_eur": round(savings * 0.9, 0),
                     "payback_years": round(payback * 0.85, 1),
                     "npv_20y_eur": round(savings * 0.9 * 15 - roi_investment, 0),
-                    "co2_savings_tons": round(roi_pv * 0.95 * 0.4, 1),
+                    "co2_savings_tons": round(roi_pv * 0.95 * 0.363, 1),
                     "highlight": "Schnellste Amortisation"
                 },
                 {
@@ -1045,7 +1045,7 @@ Ihr EWS Energieberatungs-Team
                     "annual_savings_eur": round(savings * 1.2, 0),
                     "payback_years": round(payback * 1.1, 1),
                     "npv_20y_eur": round(savings * 1.2 * 15 - auto_investment, 0),
-                    "co2_savings_tons": round(auto_pv * 0.95 * 0.4, 1),
+                    "co2_savings_tons": round(auto_pv * 0.95 * 0.363, 1),
                     "highlight": "Maximale Unabhängigkeit"
                 }
             ],
@@ -1065,7 +1065,7 @@ Ihr EWS Energieberatungs-Team
         savings = simulation.get('annual_savings_eur', 0)
         payback = simulation.get('payback_period_years', 0)
         pv_gen = simulation.get('pv_generation_kwh', 0)
-        co2 = pv_gen * 0.4 / 1000
+        co2 = pv_gen * 0.363 / 1000  # kg CO2/kWh (UBA 2024)
 
         return {
             "greeting": f"Sehr geehrte/r {customer}, vielen Dank für Ihr Interesse an einer nachhaltigen Energielösung für Ihren Standort{' in ' + city if city else ''}.",
