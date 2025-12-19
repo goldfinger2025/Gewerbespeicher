@@ -9,7 +9,6 @@ Reference: StromNZV, industry practice
 Run with: pytest tests/test_peak_shaving.py -v
 """
 
-import pytest
 import numpy as np
 from typing import Dict, List
 
@@ -244,11 +243,11 @@ class TestLoadProfileAnalysis:
         hours = 8760 * 4  # 15-min intervals
         profile = np.ones(hours) * 46  # ~100 MWh
         result = analyze_load_profile(profile, interval_minutes=15)
-        assert result["is_rlm"] == True
+        assert result["is_rlm"]
 
         profile_small = np.ones(hours) * 10  # ~22 MWh
         result_small = analyze_load_profile(profile_small, interval_minutes=15)
-        assert result_small["is_rlm"] == False
+        assert not result_small["is_rlm"]
 
     def test_potential_savings(self):
         """Potential savings = reduction × power price"""
@@ -548,8 +547,7 @@ class TestPeakShavingIntegration:
 
         # 100 MWh threshold check
         # 50 kW × 8760 h = 438,000 kWh = 438 MWh
-        assert analysis["is_rlm"] == True
+        assert analysis["is_rlm"]
 
-        # Potential savings
-        reduction = 100 - analysis["p90_kw"]
+        # Potential savings should be positive
         assert analysis["potential_savings_eur"] > 0

@@ -8,9 +8,6 @@ academic references (HTW Berlin, VDI 2067, Fraunhofer ISE, IEA PVPS).
 Run with: pytest tests/test_calculations.py -v
 """
 
-import pytest
-import math
-from typing import Dict
 
 
 # ============================================================================
@@ -617,7 +614,6 @@ class TestCalculationIntegration:
         """Complete test for typical 30 kWp commercial system"""
         # System: 30 kWp PV, 20 kWh battery, 50 MWh consumption
         pv_peak_kw = 30
-        battery_kwh = 20
         battery_power_kw = 10
 
         # Expected yields (North Germany)
@@ -635,10 +631,8 @@ class TestCalculationIntegration:
         battery_flh = calculate_full_load_hours(battery_discharge, battery_power_kw)
         battery_cf = calculate_capacity_factor(battery_flh)
 
-        # Investment and savings
-        investment = 30 * 1050 + 20 * 600 + 3000  # ~46,500 EUR
-        annual_savings = (load - grid_import) * 0.30 + grid_export * 0.0786 - grid_import * 0.30
-        # Simplified: savings = avoided cost - grid cost + feed-in
+        # Investment: 30 kWp * 1050 €/kWp + 20 kWh * 600 €/kWh + 3000 € = ~46,500 EUR
+        # Savings: (load - grid_import) * 0.30 + grid_export * 0.0786
         # = 25000 * 0.30 + 3500 * 0.0786 = 7500 + 275 = 7775 EUR
 
         # Verify all metrics in expected ranges

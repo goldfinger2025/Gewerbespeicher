@@ -9,7 +9,6 @@ Reference: Fraunhofer ISE, DIN EN 15316
 Run with: pytest tests/test_battery_simulation.py -v
 """
 
-import pytest
 import numpy as np
 from typing import Tuple
 
@@ -219,7 +218,6 @@ class TestBatteryHourSimulation:
     def test_efficiency_applied(self):
         """Efficiency losses should be applied"""
         roundtrip = 0.90
-        single = roundtrip ** 0.5  # ~0.949
 
         # Charge 10 kWh worth
         new_soc, charge, _, _, _, _ = simulate_battery_hour(
