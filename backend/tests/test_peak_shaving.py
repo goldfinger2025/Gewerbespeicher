@@ -68,6 +68,9 @@ def identify_top_peaks(
     """
     Identify top N peaks with minimum distance between them
     """
+    if len(load_profile_kw) == 0:
+        return []
+
     intervals_per_hour = 60 / interval_minutes
     min_distance = int(min_distance_hours * intervals_per_hour)
 
@@ -75,7 +78,7 @@ def identify_top_peaks(
     profile_copy = load_profile_kw.copy()
 
     for _ in range(n_peaks):
-        if np.max(profile_copy) <= 0:
+        if len(profile_copy) == 0 or np.max(profile_copy) <= 0:
             break
 
         peak_idx = int(np.argmax(profile_copy))
