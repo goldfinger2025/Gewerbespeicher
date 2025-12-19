@@ -8,7 +8,7 @@
 
 ## Zusammenfassung
 
-Die Anwendung wurde einer umfassenden Validierung unterzogen. Es wurden **2 kritische Fehler** identifiziert und korrigiert, **3 Verbesserungen** implementiert, sowie alle gesetzlichen Rahmenbedingungen verifiziert.
+Die Anwendung wurde einer umfassenden Validierung unterzogen. Es wurden **2 kritische Fehler** identifiziert und korrigiert, **5 Verbesserungen** implementiert, sowie alle gesetzlichen Rahmenbedingungen verifiziert.
 
 ### Korrigierte Fehler:
 1. ✅ **IRR-Berechnung** war fehlerhaft (einfache Rendite statt echte IRR)
@@ -18,6 +18,8 @@ Die Anwendung wurde einer umfassenden Validierung unterzogen. Es wurden **2 krit
 3. ✅ **Diskontierte Amortisation** hinzugefügt (finanziell präziser als einfache Amortisation)
 4. ✅ **EEG-Staffelung 40-100 kWp** in Angebotsservice korrigiert (korrekte anteilige Berechnung)
 5. ✅ **Konstanten-Konsistenz** - Investitionskosten aus zentraler Konfiguration
+6. ✅ **Batterie-Parameter zentralisiert** - SOC-Grenzen und Effizienz aus config.py
+7. ✅ **Simulator-Konsistenz** - Beide Simulatoren nutzen identische Batterie-Logik
 
 ---
 
@@ -254,17 +256,22 @@ def calculate_discounted_payback(investment, annual_cf, discount_rate, years, de
 
 ### 3.2 Batteriespeicher
 
-**Status: ✅ KORREKT**
+**Status: ✅ KORREKT + ZENTRALISIERT**
 
 | Parameter | Code-Wert | Fachliteratur (LFP) | Quelle |
 |-----------|-----------|---------------------|--------|
-| Lade-Effizienz | 95% | 94-96% | Hersteller |
-| Entlade-Effizienz | 95% | 94-96% | Hersteller |
-| Round-Trip | 90.25% | 88-92% | Fraunhofer ISE |
+| Lade-Effizienz | √0.90 ≈ 94.9% | 94-96% | Hersteller |
+| Entlade-Effizienz | √0.90 ≈ 94.9% | 94-96% | Hersteller |
+| Round-Trip | 90% | 88-92% | Fraunhofer ISE |
 | SOC Min | 10% | 10-20% | Hersteller |
 | SOC Max | 90% | 80-95% | Hersteller |
 | Zyklenlebensdauer | 6.000 | 5.000-8.000 | CATL, BYD |
 | Kalendarische Lebensd. | 15 Jahre | 15-20 Jahre | Fraunhofer ISE |
+
+**Hinweis:** Effizienzwerte werden aus der zentralen Konfiguration (`config.py`) abgeleitet:
+- Round-Trip-Effizienz: 90% (konfigurierbar)
+- Single-Direction: √(Round-Trip) für symmetrische Verluste
+- Beide Simulatoren (`simulator.py`, `pvlib_simulator.py`) nutzen dieselben Parameter
 
 ### 3.3 CO2-Emissionsfaktor
 

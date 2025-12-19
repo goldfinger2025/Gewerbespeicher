@@ -691,12 +691,21 @@ class PVLibSimulator:
         grid_export = np.zeros(hours)
         self_consumption = np.zeros(hours)
 
-        # Battery parameters
+        # Battery parameters from centralized config
+        # SOC limits from config (default: 10% min, 90% max)
+        soc_min_factor = SIMULATION_DEFAULTS.get("battery_soc_min", 0.10)
+        soc_max_factor = SIMULATION_DEFAULTS.get("battery_soc_max", 0.90)
+        roundtrip_efficiency = SIMULATION_DEFAULTS.get("battery_roundtrip_efficiency", 0.90)
+
+        # Derive single-direction efficiency from round-trip (sqrt for symmetric)
+        # Round-trip = charge_eff * discharge_eff, assuming equal: each = sqrt(roundtrip)
+        single_efficiency = roundtrip_efficiency ** 0.5  # ≈ 0.949 for 90% roundtrip
+
         current_soc = battery_kwh * 0.5  # Start at 50%
-        min_soc = battery_kwh * 0.1  # 10% minimum
-        max_soc = battery_kwh * 0.9  # 90% maximum
-        charge_efficiency = 0.95
-        discharge_efficiency = 0.95
+        min_soc = battery_kwh * soc_min_factor
+        max_soc = battery_kwh * soc_max_factor
+        charge_efficiency = single_efficiency
+        discharge_efficiency = single_efficiency
 
         for hour in range(hours):
             pv = pv_output[hour]

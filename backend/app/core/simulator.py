@@ -6,6 +6,8 @@ Core simulation engine using simplified physics model
 import numpy as np
 from typing import Dict
 
+from app.config import SIMULATION_DEFAULTS
+
 
 class PVStorageSimulator:
     """
@@ -256,45 +258,52 @@ class PVStorageSimulator:
         grid_import = np.zeros(hours)
         grid_export = np.zeros(hours)
         
-        # Start at 50% SOC
-        current_soc = battery_kwh * 0.5
-        
-        # Battery efficiency
-        charge_efficiency = 0.95
-        discharge_efficiency = 0.95
-        
+        # Battery parameters from centralized config
+        soc_min_factor = SIMULATION_DEFAULTS.get("battery_soc_min", 0.10)
+        soc_max_factor = SIMULATION_DEFAULTS.get("battery_soc_max", 0.90)
+        roundtrip_efficiency = SIMULATION_DEFAULTS.get("battery_roundtrip_efficiency", 0.90)
+
+        # Derive single-direction efficiency from round-trip (sqrt for symmetric)
+        single_efficiency = roundtrip_efficiency ** 0.5  # ≈ 0.949 for 90% roundtrip
+
+        min_soc = battery_kwh * soc_min_factor
+        max_soc = battery_kwh * soc_max_factor
+        current_soc = battery_kwh * 0.5  # Start at 50%
+        charge_efficiency = single_efficiency
+        discharge_efficiency = single_efficiency
+
         for hour in range(hours):
             pv = pv_output[hour]
             load = load_profile[hour]
-            
+
             # Energy balance
             balance = pv - load  # Positive = surplus, Negative = deficit
-            
+
             if balance > 0:
                 # Surplus: Charge battery first, then export
                 charge_possible = min(
                     balance,
                     battery_power_kw,
-                    (battery_kwh - current_soc) / charge_efficiency
+                    (max_soc - current_soc) / charge_efficiency
                 )
-                
+
                 battery_charge[hour] = charge_possible
                 current_soc += charge_possible * charge_efficiency
                 grid_export[hour] = balance - charge_possible
-                
+
             else:
                 # Deficit: Discharge battery first, then import
                 discharge_needed = -balance
                 discharge_possible = min(
                     discharge_needed,
                     battery_power_kw,
-                    current_soc * discharge_efficiency
+                    (current_soc - min_soc) * discharge_efficiency
                 )
-                
+
                 battery_discharge[hour] = discharge_possible
                 current_soc -= discharge_possible / discharge_efficiency
                 grid_import[hour] = discharge_needed - discharge_possible
-            
+
             battery_soc[hour] = current_soc
         
         return (
