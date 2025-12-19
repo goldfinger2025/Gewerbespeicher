@@ -486,13 +486,20 @@ class PVLibSimulator:
 
         # ============ VOLLLASTSTUNDEN (Full Load Hours) ============
         # PV-Volllaststunden: Stunden bei Nennleistung für gleiche Energiemenge
+        # Definition: Jahresenergie / Nennleistung (VDI 4655, IEA PVPS)
         pv_full_load_hours = total_pv_generation / pv_peak_kw if pv_peak_kw > 0 else 0
 
         # Batterie-Volllaststunden (Entladung): Entladeenergie / Nennleistung
+        # Hinweis: Basiert auf Entladeenergie (üblich für Wirtschaftlichkeitsbetrachtungen)
         battery_full_load_hours = total_battery_discharge / battery_power_kw if battery_power_kw > 0 else 0
 
         # Batterie-Nutzungsgrad: Betriebsstunden / Gesamtstunden Jahr (8760h)
+        # Definition: Anteil der Zeit mit aktiver Lade-/Entladeaktivität
         battery_utilization_percent = (battery_operating_hours / 8760) * 100 if battery_operating_hours > 0 else 0
+
+        # Batterie-Kapazitätsfaktor: Volllaststunden / 8760
+        # Definition: Verhältnis tatsächlicher Energiedurchsatz zu theoretisch maximalem
+        battery_capacity_factor_percent = (battery_full_load_hours / 8760) * 100
 
         # ============ 6. FINANCIAL CALCULATIONS ============
         # Costs without system
@@ -640,6 +647,7 @@ class PVLibSimulator:
             "battery_operating_hours": battery_operating_hours,
             "battery_full_load_hours": round(battery_full_load_hours, 1),
             "battery_utilization_percent": round(battery_utilization_percent, 1),
+            "battery_capacity_factor_percent": round(battery_capacity_factor_percent, 2),
 
             # PV
             "pv_full_load_hours": round(pv_full_load_hours, 1),

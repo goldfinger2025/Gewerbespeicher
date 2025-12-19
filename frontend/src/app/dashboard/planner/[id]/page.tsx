@@ -649,6 +649,7 @@ export default function PlannerPage() {
                   batteryOperatingHours={simulation.results?.battery_operating_hours}
                   batteryFullLoadHours={simulation.results?.battery_full_load_hours}
                   batteryUtilizationPercent={simulation.results?.battery_utilization_percent}
+                  batteryCapacityFactorPercent={simulation.results?.battery_capacity_factor_percent}
                   pvFullLoadHours={simulation.results?.pv_full_load_hours}
                 />
               )}

@@ -30,6 +30,7 @@ interface BatteryInsightsProps {
   batteryOperatingHours?: number;
   batteryFullLoadHours?: number;
   batteryUtilizationPercent?: number;
+  batteryCapacityFactorPercent?: number;
   pvFullLoadHours?: number;
 }
 
@@ -46,6 +47,7 @@ export function BatteryInsights({
   batteryOperatingHours,
   batteryFullLoadHours,
   batteryUtilizationPercent,
+  batteryCapacityFactorPercent,
   pvFullLoadHours,
 }: BatteryInsightsProps) {
   // Generate synthetic daily SOC pattern (typical summer day)
@@ -121,6 +123,9 @@ export function BatteryInsights({
     const chargingHours = batteryChargingHours ?? Math.round(operatingHours * 0.45);
     const dischargingHours = batteryDischargingHours ?? Math.round(operatingHours * 0.55);
 
+    // Kapazitätsfaktor: Volllaststunden / 8760 (wie intensiv wird die Batterie genutzt)
+    const capacityFactor = batteryCapacityFactorPercent ?? (fullLoadHours / 8760) * 100;
+
     return {
       yearlyDegradation: Math.round(yearlyDegradation * 10) / 10,
       estimatedLifeYears,
@@ -132,11 +137,12 @@ export function BatteryInsights({
       operatingHours: Math.round(operatingHours),
       chargingHours: Math.round(chargingHours),
       dischargingHours: Math.round(dischargingHours),
+      capacityFactor: Math.round(capacityFactor * 100) / 100,
       pvFullLoadHours: pvFullLoadHours ?? Math.round(pvGeneration / (pvPeakKw || 1)),
     };
   }, [batteryCycles, annualSavings, batteryCapacity, batteryPowerKw, pvGeneration, pvPeakKw,
       batteryUtilizationPercent, batteryFullLoadHours, batteryOperatingHours,
-      batteryChargingHours, batteryDischargingHours, pvFullLoadHours]);
+      batteryChargingHours, batteryDischargingHours, batteryCapacityFactorPercent, pvFullLoadHours]);
 
   const formatNumber = (n: number) =>
     n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
@@ -295,7 +301,7 @@ export function BatteryInsights({
           <Zap className="w-5 h-5 text-amber-500" />
           Volllaststunden & Betriebsstunden
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-amber-50 rounded-lg p-4">
             <p className="text-sm text-slate-600">PV-Volllaststunden</p>
             <p className="text-2xl font-bold text-amber-700">{formatNumber(batteryMetrics.pvFullLoadHours)} h</p>
@@ -314,7 +320,12 @@ export function BatteryInsights({
           <div className="bg-violet-50 rounded-lg p-4">
             <p className="text-sm text-slate-600">Nutzungsgrad</p>
             <p className="text-2xl font-bold text-violet-700">{batteryMetrics.utilizationRate}%</p>
-            <p className="text-xs text-slate-500">von 8.760 h/Jahr</p>
+            <p className="text-xs text-slate-500">Betriebszeit/Jahr</p>
+          </div>
+          <div className="bg-rose-50 rounded-lg p-4">
+            <p className="text-sm text-slate-600">Kapazitätsfaktor</p>
+            <p className="text-2xl font-bold text-rose-700">{batteryMetrics.capacityFactor}%</p>
+            <p className="text-xs text-slate-500">Auslastungsintensität</p>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4">

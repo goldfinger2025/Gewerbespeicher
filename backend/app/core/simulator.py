@@ -101,11 +101,13 @@ class PVStorageSimulator:
         battery_discharging_hours = int(np.sum(battery_discharge > 0))
         battery_operating_hours = battery_charging_hours + battery_discharging_hours
 
-        # Volllaststunden
+        # Volllaststunden (VDI 4655, IEA PVPS)
         total_battery_discharge = float(battery_discharge.sum())
         pv_full_load_hours = total_pv_generation / pv_peak_kw if pv_peak_kw > 0 else 0
         battery_full_load_hours = total_battery_discharge / battery_power_kw if battery_power_kw > 0 else 0
         battery_utilization_percent = (battery_operating_hours / hours) * 100
+        # Kapazitätsfaktor: Verhältnis tatsächlicher zu theoretisch max. Energiedurchsatz
+        battery_capacity_factor_percent = (battery_full_load_hours / hours) * 100
         
         # ============ 5. FINANCIAL CALCULATIONS ============
         
@@ -148,6 +150,7 @@ class PVStorageSimulator:
             "battery_operating_hours": battery_operating_hours,
             "battery_full_load_hours": round(battery_full_load_hours, 1),
             "battery_utilization_percent": round(battery_utilization_percent, 1),
+            "battery_capacity_factor_percent": round(battery_capacity_factor_percent, 2),
             "pv_full_load_hours": round(pv_full_load_hours, 1),
         }
     

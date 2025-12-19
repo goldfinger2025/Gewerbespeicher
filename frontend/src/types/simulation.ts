@@ -25,6 +25,7 @@ export interface Simulation {
   battery_operating_hours?: number;
   battery_full_load_hours?: number;
   battery_utilization_percent?: number;
+  battery_capacity_factor_percent?: number;
   pv_full_load_hours?: number;
 
   // Financial Results (30-year horizon)
@@ -108,6 +109,7 @@ export interface SimulationKPIs {
   battery_operating_hours?: number;
   battery_full_load_hours?: number;
   battery_utilization_percent?: number;
+  battery_capacity_factor_percent?: number;
   pv_full_load_hours?: number;
 }
 

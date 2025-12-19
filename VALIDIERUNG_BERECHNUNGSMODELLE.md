@@ -277,14 +277,19 @@ def calculate_discounted_payback(investment, annual_cf, discount_rate, years, de
 
 **Status: ✅ IMPLEMENTIERT (Dezember 2025)**
 
-| Kennzahl | Formel | Beschreibung |
-|----------|--------|--------------|
-| PV-Volllaststunden | `pv_generation_kwh / pv_peak_kw` | Äquivalente Stunden bei Nennleistung für Jahresertrag |
-| Batterie-Volllaststunden | `battery_discharge_kwh / battery_power_kw` | Entladeenergie / Nennleistung |
-| Batterie-Ladestunden | Σ(Stunden mit Ladung > 0) | Tatsächliche Stunden mit Ladeaktivität |
-| Batterie-Entladestunden | Σ(Stunden mit Entladung > 0) | Tatsächliche Stunden mit Entladeaktivität |
-| Batterie-Betriebsstunden | Ladestunden + Entladestunden | Gesamte aktive Betriebszeit |
-| Batterie-Nutzungsgrad | `Betriebsstunden / 8760 × 100` | Anteil der Jahresstunden mit Aktivität |
+| Kennzahl | Formel | Beschreibung | Referenz |
+|----------|--------|--------------|----------|
+| PV-Volllaststunden | `pv_generation_kwh / pv_peak_kw` | Äquivalente Stunden bei Nennleistung | VDI 4655, IEA PVPS |
+| Batterie-Volllaststunden | `battery_discharge_kwh / battery_power_kw` | Entladeenergie / Nennleistung | VDI 4655 |
+| Batterie-Ladestunden | Σ(Stunden mit Ladung > 0) | Tatsächliche Stunden mit Ladeaktivität | DIN EN 15316 |
+| Batterie-Entladestunden | Σ(Stunden mit Entladung > 0) | Tatsächliche Stunden mit Entladeaktivität | DIN EN 15316 |
+| Batterie-Betriebsstunden | Ladestunden + Entladestunden | Gesamte aktive Betriebszeit | DIN EN 15316 |
+| Batterie-Nutzungsgrad | `Betriebsstunden / 8760 × 100` | Anteil der Jahresstunden mit Aktivität | - |
+| Batterie-Kapazitätsfaktor | `Volllaststunden / 8760 × 100` | Intensität der Auslastung | IEEE 762 |
+
+**Unterschied Nutzungsgrad vs. Kapazitätsfaktor:**
+- **Nutzungsgrad**: Wie oft ist das System aktiv? (zeitbasiert)
+- **Kapazitätsfaktor**: Wie intensiv wird das System genutzt? (energiebasiert)
 
 **Typische Werte (Gewerbespeicher):**
 - PV-Volllaststunden: 900-1.100 h/Jahr (Deutschland)
