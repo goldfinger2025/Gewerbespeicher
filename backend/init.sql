@@ -219,35 +219,42 @@ CREATE TABLE offers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     simulation_id UUID NOT NULL REFERENCES simulations(id),
     project_id UUID NOT NULL REFERENCES projects(id),
-    
+
     -- Offer Metadata
     offer_number VARCHAR(50) UNIQUE,
     offer_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     valid_until DATE,
-    
+
     -- Content
     offer_text TEXT,
     technical_specs JSONB,
     components_bom JSONB,
     pricing_breakdown JSONB,
-    
+
+    -- Professional Offer Details
+    warranty_info JSONB,
+    subsidy_info JSONB,
+    payment_terms TEXT,
+    terms_reference VARCHAR(255),
+    service_package JSONB,
+
     -- E-Signature
     signature_link VARCHAR(500),
     is_signed BOOLEAN DEFAULT false,
     signed_at TIMESTAMP,
     signer_name VARCHAR(255),
-    
+
     -- PDF
     pdf_path VARCHAR(500),
     pdf_generated_at TIMESTAMP,
-    
+
     -- CRM Integration
     hubspot_deal_id VARCHAR(100),
     crm_sync_status VARCHAR(50) DEFAULT 'pending',
-    
+
     -- Status
     status VARCHAR(50) DEFAULT 'draft',
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
